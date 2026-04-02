@@ -14,8 +14,10 @@ import {
   createTemporaryShareLink,
   getShareErrorMessage,
   revokeTemporaryShareLink,
+  shareFilesDirect,
   shareImageWithPolicy,
   shareTemporaryLink,
+  shareTemporaryLinks,
 } from '../features/share/share.service';
 import type { ShareLinkResult } from '../features/share/share.types';
 import { firestoreDb, firebaseStorage } from '../lib/firebase';
@@ -81,6 +83,49 @@ function TrashIcon() {
   );
 }
 
+function ShareFileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M8 7.2V5.5c0-.8.7-1.5 1.5-1.5h5c.8 0 1.5.7 1.5 1.5v1.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6 9.3h12v9.2c0 .9-.7 1.6-1.6 1.6H7.6c-.9 0-1.6-.7-1.6-1.6V9.3z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m12 10.7 3 3M15 13.7h-2.2V16M12 10.7l-3 3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ShareLinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M10 8.4 8.3 10a3 3 0 0 0 0 4.3 3 3 0 0 0 4.3 0l1.7-1.6M14 15.6l1.7-1.6a3 3 0 0 0 0-4.3 3 3 0 0 0-4.3 0L9.7 11.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function DashboardPage() {
   const { user } = useAuth();
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -93,6 +138,7 @@ function DashboardPage() {
   const [isRevokingLink, setIsRevokingLink] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -181,8 +227,46 @@ function DashboardPage() {
     [images, selectedSectionId],
   );
 
+  useEffect(() => {
+    const visibleIds = new Set(visibleImages.map((image) => image.id));
+    setSelectedImageIds((current) => current.filter((imageId) => visibleIds.has(imageId)));
+  }, [visibleImages]);
+
+  const selectedVisibleImages = useMemo(
+    () => visibleImages.filter((image) => selectedImageIds.includes(image.id)),
+    [visibleImages, selectedImageIds],
+  );
+
   const countImagesBySection = (sectionId: string): number =>
     images.filter((image) => image.sectionId === sectionId).length;
+
+  const handleToggleImageSelection = (imageId: string): void => {
+    setSelectedImageIds((current) =>
+      current.includes(imageId)
+        ? current.filter((currentId) => currentId !== imageId)
+        : [...current, imageId],
+    );
+  };
+
+  const handleToggleSelectAllVisible = (): void => {
+    if (selectedVisibleImages.length === visibleImages.length && visibleImages.length > 0) {
+      setSelectedImageIds([]);
+      return;
+    }
+
+    setSelectedImageIds(visibleImages.map((image) => image.id));
+  };
+
+  const createLinksForImages = async (selectedImages: GalleryImage[]): Promise<ShareLinkResult[]> =>
+    Promise.all(
+      selectedImages.map((image) =>
+        createTemporaryShareLink({
+          targetType: 'image',
+          targetId: image.id,
+          ttlHours: 12,
+        }),
+      ),
+    );
 
   const handleCreateSection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -342,7 +426,40 @@ function DashboardPage() {
     }
   };
 
-  const handleImageShare = async (image: GalleryImage): Promise<void> => {
+  const handleImageShareLink = async (image: GalleryImage): Promise<void> => {
+    setIsSharing(true);
+
+    try {
+      const link = await createTemporaryShareLink({
+        targetType: 'image',
+        targetId: image.id,
+        ttlHours: 12,
+      });
+
+      setLastLink(link);
+      await shareTemporaryLink(link);
+      setFeedback({
+        tone: 'success',
+        message: `Link temporal enviado para ${image.fileName}. Vence el ${formatDateTime(link.expiresAt)}.`,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setFeedback({
+          tone: 'info',
+          message: 'El envio se cancelo por el usuario.',
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          message: getShareErrorMessage(error, 'No se pudo compartir el link de esta imagen.'),
+        });
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleImageShareFile = async (image: GalleryImage): Promise<void> => {
     setIsSharing(true);
 
     try {
@@ -384,6 +501,97 @@ function DashboardPage() {
         setFeedback({
           tone: 'warning',
           message: getShareErrorMessage(error, 'No fue posible compartir esta imagen ahora.'),
+        });
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleShareSelectedLinks = async (): Promise<void> => {
+    if (selectedVisibleImages.length === 0) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Selecciona al menos una imagen para compartir por link.',
+      });
+      return;
+    }
+
+    setIsSharing(true);
+
+    try {
+      const links = await createLinksForImages(selectedVisibleImages);
+      setLastLink(links[links.length - 1] ?? null);
+      await shareTemporaryLinks(links);
+      setFeedback({
+        tone: 'success',
+        message: `Se compartieron ${links.length} links temporales para imagenes seleccionadas.`,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setFeedback({
+          tone: 'info',
+          message: 'El envio se cancelo por el usuario.',
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          message: getShareErrorMessage(error, 'No se pudieron compartir los links seleccionados.'),
+        });
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleShareSelectedFiles = async (): Promise<void> => {
+    if (selectedVisibleImages.length === 0) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Selecciona al menos una imagen para compartir como archivo.',
+      });
+      return;
+    }
+
+    setIsSharing(true);
+
+    try {
+      const links = await createLinksForImages(selectedVisibleImages);
+      setLastLink(links[links.length - 1] ?? null);
+
+      const filesWithUndefined = await Promise.all(
+        selectedVisibleImages.map((image) => buildSourceFileFromUrl(image.previewUrl, image.fileName)),
+      );
+      const files = filesWithUndefined.filter((file): file is File => file instanceof File);
+
+      const directShared = await shareFilesDirect({
+        title: 'Exito Azul',
+        text: `${files.length} imagen(es) compartidas desde Exito Azul`,
+        files,
+      });
+
+      if (directShared) {
+        setFeedback({
+          tone: 'success',
+          message: `Se compartieron ${files.length} imagen(es) como archivo adjunto.`,
+        });
+      } else {
+        await shareTemporaryLinks(links);
+        setFeedback({
+          tone: 'info',
+          message: `No hubo compatibilidad para compartir archivos. Se enviaron ${links.length} links temporales.`,
+        });
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setFeedback({
+          tone: 'info',
+          message: 'El envio se cancelo por el usuario.',
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          message: getShareErrorMessage(error, 'No fue posible compartir las imagenes seleccionadas.'),
         });
       }
     } finally {
@@ -476,33 +684,114 @@ function DashboardPage() {
         <div className="panel-head with-actions">
           <div>
             <h2>Imagenes de la seccion</h2>
-            <p>Gestion de imagenes con acciones flotantes por tarjeta.</p>
+            <p>Gestion de imagenes con acciones flotantes y compartido individual o masivo.</p>
           </div>
 
-          <label className={isUploading ? 'secondary-btn file-upload-btn disabled' : 'secondary-btn file-upload-btn'}>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => {
-                void handleUploadImage(event);
+          <div className="image-panel-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={handleToggleSelectAllVisible}
+              disabled={isLoadingData || visibleImages.length === 0}
+            >
+              {selectedVisibleImages.length === visibleImages.length && visibleImages.length > 0
+                ? 'Limpiar seleccion'
+                : 'Seleccionar todas'}
+            </button>
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                void handleShareSelectedLinks();
               }}
-              disabled={isUploading || !selectedSection}
-            />
-            {isUploading ? 'Subiendo...' : 'Subir imagen'}
-          </label>
+              disabled={isSharing || selectedVisibleImages.length === 0}
+            >
+              Compartir seleccion por link
+            </button>
+
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                void handleShareSelectedFiles();
+              }}
+              disabled={isSharing || selectedVisibleImages.length === 0}
+            >
+              Compartir seleccion por archivo
+            </button>
+
+            <label
+              className={
+                isUploading ? 'secondary-btn file-upload-btn disabled' : 'secondary-btn file-upload-btn'
+              }
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  void handleUploadImage(event);
+                }}
+                disabled={isUploading || !selectedSection}
+              />
+              {isUploading ? 'Subiendo...' : 'Subir imagen'}
+            </label>
+          </div>
         </div>
 
         {isLoadingData ? (
           <p className="empty-state">Cargando datos de tu galeria...</p>
         ) : (
           <>
+            {visibleImages.length > 0 && (
+              <p className="inline-note">
+                {selectedVisibleImages.length === 0
+                  ? 'Selecciona imagenes para compartir en lote.'
+                  : `${selectedVisibleImages.length} imagen(es) seleccionadas para compartir.`}
+              </p>
+            )}
+
             <div className="gallery-grid">
               {visibleImages.map((image) => (
                 <article key={image.id} className="image-card">
                   <div className="image-stage">
                     <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
 
+                    <label className="image-select-chip">
+                      <input
+                        type="checkbox"
+                        checked={selectedImageIds.includes(image.id)}
+                        onChange={() => handleToggleImageSelection(image.id)}
+                        aria-label={`Seleccionar ${image.fileName}`}
+                      />
+                      <span>Seleccionar</span>
+                    </label>
+
                     <div className="image-float-actions">
+                      <button
+                        type="button"
+                        className="icon-btn share-file"
+                        aria-label="Compartir imagen como archivo"
+                        onClick={() => {
+                          void handleImageShareFile(image);
+                        }}
+                        disabled={isSharing}
+                      >
+                        <ShareFileIcon />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="icon-btn share-link"
+                        aria-label="Compartir imagen por link"
+                        onClick={() => {
+                          void handleImageShareLink(image);
+                        }}
+                        disabled={isSharing}
+                      >
+                        <ShareLinkIcon />
+                      </button>
+
                       <button
                         type="button"
                         className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
@@ -535,17 +824,6 @@ function DashboardPage() {
                     <h3>{image.fileName}</h3>
                     <p>{image.isFavorite ? 'Favorita activa' : 'Sin marcar como favorita'}</p>
                   </div>
-
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    onClick={() => {
-                      void handleImageShare(image);
-                    }}
-                    disabled={isSharing}
-                  >
-                    Compartir ahora
-                  </button>
                 </article>
               ))}
             </div>

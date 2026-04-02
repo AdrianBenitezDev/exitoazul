@@ -33,16 +33,30 @@ type ResolveSharedGalleryResponse = {
 
 const trimFinalSlash = (value: string): string => value.replace(/\/+$/, '');
 
+const isLocalhostOrigin = (origin: string): boolean =>
+  /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(origin);
+
+const getFirebaseHostedBaseUrl = (): string => {
+  if (env.firebaseProjectId) {
+    return `https://${env.firebaseProjectId}.web.app`;
+  }
+
+  return 'https://exitoazul-87247.web.app';
+};
+
 const getShareBaseUrl = (): string => {
   if (env.publicShareBaseUrl) {
     return trimFinalSlash(env.publicShareBaseUrl);
   }
 
   if (typeof window !== 'undefined') {
-    return trimFinalSlash(window.location.origin);
+    const origin = trimFinalSlash(window.location.origin);
+    if (!isLocalhostOrigin(origin)) {
+      return origin;
+    }
   }
 
-  return 'http://localhost:5173';
+  return trimFinalSlash(getFirebaseHostedBaseUrl());
 };
 
 const normalizeDate = (value: string): Date => {
@@ -55,7 +69,11 @@ const isAbortError = (error: unknown): boolean =>
 
 const canUseNavigatorShare = (): boolean => typeof navigator.share === 'function';
 
-const canShareFiles = (file: File): boolean => {
+const canShareFiles = (files: File[]): boolean => {
+  if (files.length === 0) {
+    return false;
+  }
+
   if (!canUseNavigatorShare()) {
     return false;
   }
@@ -69,7 +87,7 @@ const canShareFiles = (file: File): boolean => {
   }
 
   try {
-    return navigatorWithCanShare.canShare({ files: [file] });
+    return navigatorWithCanShare.canShare({ files });
   } catch {
     return false;
   }
@@ -191,6 +209,63 @@ export const shareTemporaryLink = async (link: ShareLinkResult): Promise<void> =
   await shareLinkByClient(link.url);
 };
 
+export const shareTemporaryLinks = async (links: ShareLinkResult[]): Promise<void> => {
+  if (links.length === 0) {
+    return;
+  }
+
+  if (links.length === 1) {
+    await shareTemporaryLink(links[0]);
+    return;
+  }
+
+  const urls = links.map((link) => link.url);
+  const text = `Links temporales de Exito Azul:\n${urls.join('\n')}`;
+
+  if (canUseNavigatorShare()) {
+    await navigator.share({
+      title: 'Exito Azul',
+      text,
+    });
+    return;
+  }
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  window.open(urls[0], '_blank', 'noopener,noreferrer');
+};
+
+export const shareFilesDirect = async (params: {
+  title: string;
+  text: string;
+  files: File[];
+}): Promise<boolean> => {
+  const { title, text, files } = params;
+
+  if (!canShareFiles(files)) {
+    return false;
+  }
+
+  try {
+    await navigator.share({
+      title,
+      text,
+      files,
+    });
+
+    return true;
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
+    return false;
+  }
+};
+
 export const shareImageWithPolicy = async (params: {
   imageTitle: string;
   temporaryLink: ShareLinkResult;
@@ -198,7 +273,7 @@ export const shareImageWithPolicy = async (params: {
 }): Promise<ShareOutcome> => {
   const { imageTitle, temporaryLink, sourceFile } = params;
 
-  if (sourceFile && canShareFiles(sourceFile)) {
+  if (sourceFile && canShareFiles([sourceFile])) {
     try {
       await navigator.share({
         title: imageTitle,

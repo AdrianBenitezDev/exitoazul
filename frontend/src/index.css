@@ -120,6 +120,7 @@ code {
   align-items: center;
   gap: 0.55rem;
   font-size: clamp(1.7rem, 3vw, 2.5rem);
+  color: var(--blue);
 }
 
 .brand-icon {
@@ -310,6 +311,13 @@ code {
   gap: 0.8rem;
 }
 
+.image-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
 .panel-head p {
   color: var(--ink-soft);
 }
@@ -427,7 +435,29 @@ code {
   top: 0.45rem;
   right: 0.45rem;
   display: flex;
+  flex-direction: column;
   gap: 0.35rem;
+}
+
+.image-select-chip {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(11, 94, 215, 0.25);
+  border-radius: 999px;
+  padding: 0.14rem 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #17335f;
+}
+
+.image-select-chip input {
+  margin: 0;
+  accent-color: var(--blue);
 }
 
 .icon-btn {
@@ -452,9 +482,24 @@ code {
   transform: translateY(-1px);
 }
 
+.icon-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .icon-btn.favorite-active {
   color: #f0a400;
   border-color: rgba(240, 164, 0, 0.45);
+}
+
+.icon-btn.share-file {
+  color: #0d6e4e;
+  border-color: rgba(13, 110, 78, 0.35);
+}
+
+.icon-btn.share-link {
+  color: var(--blue);
+  border-color: rgba(11, 94, 215, 0.35);
 }
 
 .icon-btn.danger {
@@ -637,6 +682,10 @@ code {
   .site-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .image-panel-actions {
+    justify-content: flex-start;
   }
 
   .content {

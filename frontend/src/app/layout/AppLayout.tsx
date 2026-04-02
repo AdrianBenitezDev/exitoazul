@@ -165,7 +165,6 @@ function AppLayout() {
       <header className="hero-panel unified-banner">
         <div className="hero-top-row">
           <div className="hero-main">
-            <p className="eyebrow">Exito Azul</p>
             <h1 className="brand-title">
               <span className="brand-icon" aria-hidden="true">
                 <BrandStarIcon />
