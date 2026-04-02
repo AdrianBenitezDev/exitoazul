@@ -13,6 +13,8 @@ import {
 } from '../features/gallery/gallery.service';
 import {
   createTemporaryShareLink,
+  getShareErrorMessage,
+  revokeTemporaryShareLink,
   shareImageWithPolicy,
   shareTemporaryLink,
 } from '../features/share/share.service';
@@ -89,6 +91,7 @@ function DashboardPage() {
   const [lastLink, setLastLink] = useState<ShareLinkResult | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [isRevokingLink, setIsRevokingLink] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
@@ -308,16 +311,16 @@ function DashboardPage() {
   };
 
   const handleSectionShare = async (sectionId: string): Promise<void> => {
-    const link = createTemporaryShareLink({
-      targetType: 'section',
-      targetId: sectionId,
-      ttlHours: 24,
-    });
-
-    setLastLink(link);
     setIsSharing(true);
 
     try {
+      const link = await createTemporaryShareLink({
+        targetType: 'section',
+        targetId: sectionId,
+        ttlHours: 24,
+      });
+
+      setLastLink(link);
       await shareTemporaryLink(link);
       setFeedback({
         tone: 'success',
@@ -332,7 +335,7 @@ function DashboardPage() {
       } else {
         setFeedback({
           tone: 'warning',
-          message: 'No se pudo compartir el link temporal en este momento.',
+          message: getShareErrorMessage(error, 'No se pudo compartir el link temporal en este momento.'),
         });
       }
     } finally {
@@ -341,16 +344,16 @@ function DashboardPage() {
   };
 
   const handleImageShare = async (image: GalleryImage): Promise<void> => {
-    const link = createTemporaryShareLink({
-      targetType: 'image',
-      targetId: image.id,
-      ttlHours: 12,
-    });
-
-    setLastLink(link);
     setIsSharing(true);
 
     try {
+      const link = await createTemporaryShareLink({
+        targetType: 'image',
+        targetId: image.id,
+        ttlHours: 12,
+      });
+
+      setLastLink(link);
       const sourceFile = await buildSourceFileFromUrl(image.previewUrl, image.fileName);
 
       const outcome = await shareImageWithPolicy({
@@ -381,11 +384,42 @@ function DashboardPage() {
       } else {
         setFeedback({
           tone: 'warning',
-          message: 'No fue posible compartir esta imagen ahora.',
+          message: getShareErrorMessage(error, 'No fue posible compartir esta imagen ahora.'),
         });
       }
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleRevokeLastLink = async (): Promise<void> => {
+    if (!lastLink) {
+      return;
+    }
+
+    setIsRevokingLink(true);
+
+    try {
+      const revoked = await revokeTemporaryShareLink(lastLink.token);
+
+      if (revoked) {
+        setFeedback({
+          tone: 'success',
+          message: 'El link temporal fue revocado correctamente.',
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          message: 'No fue posible confirmar la revocacion del link.',
+        });
+      }
+    } catch (error) {
+      setFeedback({
+        tone: 'warning',
+        message: getShareErrorMessage(error, 'No se pudo revocar el link temporal.'),
+      });
+    } finally {
+      setIsRevokingLink(false);
     }
   };
 
@@ -550,12 +584,24 @@ function DashboardPage() {
         <section className={`panel feedback-panel ${feedback.tone}`}>
           <p>{feedback.message}</p>
           {lastLink && (
-            <p>
-              Link actual:{' '}
-              <a href={lastLink.url} className="text-link" target="_blank" rel="noreferrer">
-                {lastLink.url}
-              </a>
-            </p>
+            <>
+              <p>
+                Link actual:{' '}
+                <a href={lastLink.url} className="text-link" target="_blank" rel="noreferrer">
+                  {lastLink.url}
+                </a>
+              </p>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => {
+                  void handleRevokeLastLink();
+                }}
+                disabled={isRevokingLink}
+              >
+                {isRevokingLink ? 'Revocando link...' : 'Revocar link actual'}
+              </button>
+            </>
           )}
         </section>
       )}

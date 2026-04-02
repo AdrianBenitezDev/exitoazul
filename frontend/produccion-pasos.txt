@@ -20,12 +20,12 @@
   - users/{uid}
   - users/{uid}/sections/{sectionId}
   - users/{uid}/images/{imageId}
-  - users/{uid}/shareLinks/{linkId}
+  - publicShares/{token}
 - Guardar nombre automatico de imagen como fileName (formato seccion_numero).
 - Activar TTL/expiracion para documentos de links temporales (si aplica con politica interna).
 - Ajustar firestore.rules para:
   - acceso solo por uid propietario
-  - lectura publica solo para links compartidos validos
+  - sin lectura directa de publicShares desde cliente (solo via Functions)
   - bloqueo total a escrituras publicas
 - Crear indices requeridos (Firestore Indexes) segun queries reales.
 
@@ -41,13 +41,13 @@
 - Funcion createShareLink:
   - recibe targetType y targetId
   - genera token fuerte
-  - guarda hash/token + expiresAt + isRevoked=false
+  - guarda token + expiresAt + isRevoked=false en publicShares
 - Funcion revokeShareLink:
   - solo dueño puede revocar
-- Endpoint de lectura de galeria compartida:
+- Funcion resolveSharedGallery:
   - valida token, expiracion y revocacion
   - retorna solo la galeria puntual
-- No devolver rutas de descarga directa de Storage.
+- Opcion de mejora: evitar devolver rutas permanentes de descarga directa de Storage.
 
 6) POLITICA NO DESCARGA
 - UI: no incluir botones/menus de descargar.

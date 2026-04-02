@@ -16,60 +16,47 @@ AVANCE ACTUAL (YA IMPLEMENTADO)
 [OK] Ruta compartida "/s/:token" publica
 [OK] Registro real con Firebase Auth (email/clave)
 [OK] Login real con email/clave y Google
+[OK] createShareLink en Cloud Functions
+[OK] revokeShareLink en Cloud Functions
+[OK] resolveSharedGallery en Cloud Functions
+[OK] Vista compartida real en /s/:token (sin mock)
+[OK] Revocacion de ultimo link desde UI
 
 PENDIENTE PRIORIDAD 1 (BLOQUEANTE)
-1) Vista compartida real (sin mock)
-- Reemplazar SharedGalleryPage con datos reales por token.
-- El token debe resolver una imagen o seccion puntual, no datos globales.
+1) Deploy y validacion de Functions en Firebase
+- Desplegar functions y confirmar que frontend las consume en produccion.
+- Probar flujo completo create -> abrir /s/:token -> revoke -> acceso denegado.
 
-2) Links temporales en backend (obligatorio para seguridad real)
-- createShareLink en Cloud Functions (token fuerte + expiracion + ownerId + targetType + targetId).
-- Guardar links en Firestore (shareLinks).
+2) Reglas finales y pruebas cruzadas
+- Revisar Firestore rules finales para todos los paths nuevos.
+- Probar acceso cruzado entre usuarios (debe fallar).
+- Revisar storage rules con validaciones de tipo y tamano.
 
-PENDIENTE PRIORIDAD 2 (SEGURIDAD Y CONTROL)
-3) Revocacion manual de links
-- Function revokeShareLink.
-- El usuario dueño debe poder invalidar un link antes de su vencimiento.
-
-4) Validacion de links en backend
-- Token existente.
-- No expirado.
-- No revocado.
-- Owner y recurso validos.
-
-5) Reglas de seguridad finales
-- Firestore rules por uid ownership.
-- Storage rules por uid + validacion de tipo y tamano.
-- Pruebas de acceso cruzado entre usuarios (debe fallar).
-
-PENDIENTE PRIORIDAD 3 (ROBUSTEZ)
-6) Validaciones funcionales
+PENDIENTE PRIORIDAD 2 (ROBUSTEZ)
+3) Validaciones funcionales
 - Limite de tamano por imagen.
 - Tipos MIME permitidos.
 - Limite de volumen por usuario (control de costos).
 
-7) Manejo de errores UX
+4) Manejo de errores UX
 - Mensajes especificos por caso (auth, network, permisos, cuota).
 - Estados de carga y vacio en todas las vistas.
 
-8) Auditoria y observabilidad
+5) Auditoria y observabilidad
 - Logs en Cloud Functions (creacion/revocacion/resolucion de links).
 - Alertas basicas de fallos.
 
-PENDIENTE PRIORIDAD 4 (GO-LIVE)
-9) Entornos y despliegue
+PENDIENTE PRIORIDAD 3 (GO-LIVE)
+6) Entornos y despliegue
 - Separar dev/staging/prod.
 - Variables .env por ambiente.
 - Revisar cache headers.
 
-10) Dominio y legal
+7) Dominio y legal
 - Dominio custom (si aplica).
 - Politica de privacidad final (texto legal real).
 - Terminos y condiciones.
 
 SIGUIENTE ORDEN RECOMENDADO
-Sprint 3:
-- Links temporales con backend + revocacion + vista compartida real por token
-
 Sprint 4:
-- Reglas finales + validaciones de carga + logging/alertas + cierre de produccion
+- Reglas finales + hardening de subida + pruebas de seguridad + cierre de produccion

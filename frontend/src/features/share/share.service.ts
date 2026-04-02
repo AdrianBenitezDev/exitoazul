@@ -1,7 +1,35 @@
-﻿import { env } from '../../config/env';
-import type { ShareLinkRequest, ShareLinkResult, ShareOutcome } from './share.types';
+import { FirebaseError } from 'firebase/app';
+import { httpsCallable } from 'firebase/functions';
+import { env } from '../../config/env';
+import { firebaseFunctions } from '../../lib/firebase';
+import type { SharedGalleryResult, ShareLinkRequest, ShareLinkResult, ShareOutcome } from './share.types';
 
-const DEFAULT_TTL_HOURS = 24;
+type CreateShareLinkResponse = {
+  token: string;
+  url: string;
+  expiresAt: string;
+  targetType: 'image' | 'section';
+  targetId: string;
+};
+
+type RevokeShareLinkResponse = {
+  token: string;
+  revoked: boolean;
+};
+
+type ResolveSharedGalleryResponse = {
+  token: string;
+  targetType: 'image' | 'section';
+  targetId: string;
+  expiresAt: string;
+  sectionName: string;
+  images: Array<{
+    id: string;
+    fileName: string;
+    previewUrl: string;
+    sectionId: string;
+  }>;
+};
 
 const trimFinalSlash = (value: string): string => value.replace(/\/+$/, '');
 
@@ -17,12 +45,9 @@ const getShareBaseUrl = (): string => {
   return 'http://localhost:5173';
 };
 
-const createToken = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID().replaceAll('-', '');
-  }
-
-  return `${Date.now()}${Math.random().toString(16).slice(2)}`;
+const normalizeDate = (value: string): Date => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
 const isAbortError = (error: unknown): boolean =>
@@ -70,16 +95,95 @@ const shareLinkByClient = async (url: string): Promise<void> => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-export const createTemporaryShareLink = (request: ShareLinkRequest): ShareLinkResult => {
-  const ttlHours = request.ttlHours ?? DEFAULT_TTL_HOURS;
-  const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
-  const token = createToken();
+const requireFunctions = () => {
+  if (!firebaseFunctions) {
+    throw new Error('Firebase Functions no esta configurado en este entorno.');
+  }
+
+  return firebaseFunctions;
+};
+
+export const getShareErrorMessage = (
+  error: unknown,
+  fallback: string = 'No fue posible completar la accion de compartido.',
+): string => {
+  const code =
+    error instanceof FirebaseError
+      ? error.code
+      : typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code ?? '')
+        : '';
+
+  switch (code) {
+    case 'functions/unauthenticated':
+      return 'Debes iniciar sesion para gestionar links temporales.';
+    case 'functions/not-found':
+      return 'No se encontro el recurso solicitado.';
+    case 'functions/permission-denied':
+      return 'No tienes permisos para realizar esta accion.';
+    case 'functions/failed-precondition':
+      return 'El link temporal esta vencido o fue revocado.';
+    case 'functions/invalid-argument':
+      return 'Los datos enviados son invalidos.';
+    case 'functions/unavailable':
+      return 'El servicio de compartido no esta disponible temporalmente.';
+    default:
+      return fallback;
+  }
+};
+
+export const createTemporaryShareLink = async (
+  request: ShareLinkRequest,
+): Promise<ShareLinkResult> => {
+  const callable = httpsCallable<
+    ShareLinkRequest & { baseUrl: string },
+    CreateShareLinkResponse
+  >(requireFunctions(), 'createShareLink');
+
+  const response = await callable({
+    ...request,
+    baseUrl: getShareBaseUrl(),
+  });
 
   return {
-    url: `${getShareBaseUrl()}/s/${token}`,
-    expiresAt,
-    targetType: request.targetType,
-    targetId: request.targetId,
+    token: response.data.token,
+    url: response.data.url,
+    expiresAt: normalizeDate(response.data.expiresAt),
+    targetType: response.data.targetType,
+    targetId: response.data.targetId,
+  };
+};
+
+export const revokeTemporaryShareLink = async (token: string): Promise<boolean> => {
+  const callable = httpsCallable<{ token: string }, RevokeShareLinkResponse>(
+    requireFunctions(),
+    'revokeShareLink',
+  );
+
+  const response = await callable({
+    token,
+  });
+
+  return response.data.revoked;
+};
+
+export const resolveSharedGalleryByToken = async (token: string): Promise<SharedGalleryResult> => {
+  const callable = httpsCallable<{ token: string }, ResolveSharedGalleryResponse>(
+    requireFunctions(),
+    'resolveSharedGallery',
+  );
+
+  const response = await callable({
+    token,
+  });
+
+  return {
+    token: response.data.token,
+    targetType: response.data.targetType,
+    targetId: response.data.targetId,
+    expiresAt: normalizeDate(response.data.expiresAt),
+    sectionName: response.data.sectionName,
+    images: response.data.images,
   };
 };
 
