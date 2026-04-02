@@ -4,6 +4,7 @@
   sectionId: string;
   previewUrl: string;
   isFavorite: boolean;
+  storagePath?: string;
 };
 
 export type GallerySection = {

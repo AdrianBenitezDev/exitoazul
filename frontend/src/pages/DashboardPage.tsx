@@ -1,26 +1,28 @@
-﻿import { useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+﻿import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useAuth } from '../auth/useAuth';
 import { firebaseIsConfigured } from '../config/env';
 import type { GalleryImage, GallerySection } from '../features/gallery/gallery.types';
 import {
-  buildAutoImageName,
-  getNextImageSequence,
-  toSectionSlug,
-} from '../features/gallery/naming';
-import { initialGalleryImages, initialGallerySections } from '../features/gallery/mockData';
+  createUserSection,
+  deleteUserImage,
+  ensureDefaultSection,
+  setUserImageFavorite,
+  subscribeUserImages,
+  subscribeUserSections,
+  uploadImageForSection,
+} from '../features/gallery/gallery.service';
 import {
   createTemporaryShareLink,
   shareImageWithPolicy,
   shareTemporaryLink,
 } from '../features/share/share.service';
 import type { ShareLinkResult } from '../features/share/share.types';
+import { firestoreDb, firebaseStorage } from '../lib/firebase';
 
 type FeedbackState = {
   tone: 'info' | 'success' | 'warning';
   message: string;
 } | null;
-
-const DEMO_IMAGE_IDS = [1011, 1020, 1033, 1041, 1060, 1074, 1082, 1084, 1081, 1080, 1057];
 
 const formatDateTime = (date: Date): string =>
   new Intl.DateTimeFormat('es-AR', {
@@ -28,30 +30,26 @@ const formatDateTime = (date: Date): string =>
     timeStyle: 'short',
   }).format(date);
 
-const buildSectionId = (sectionName: string, sections: GallerySection[]): string => {
-  const baseId = toSectionSlug(sectionName);
-  let candidate = baseId;
-  let suffix = 2;
+const buildSourceFileFromUrl = async (
+  imageUrl: string,
+  baseFileName: string,
+): Promise<File | undefined> => {
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      return undefined;
+    }
 
-  while (sections.some((section) => section.id === candidate)) {
-    candidate = `${baseId}-${suffix}`;
-    suffix += 1;
+    const blob = await response.blob();
+    const extension = blob.type.split('/')[1]?.split('+')[0] ?? 'jpg';
+    const fileName = `${baseFileName}.${extension}`;
+
+    return new File([blob], fileName, {
+      type: blob.type || 'image/jpeg',
+    });
+  } catch {
+    return undefined;
   }
-
-  return candidate;
-};
-
-const buildImageId = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `img-${crypto.randomUUID()}`;
-  }
-
-  return `img-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-};
-
-const pickPreviewUrl = (indexSeed: number): string => {
-  const id = DEMO_IMAGE_IDS[indexSeed % DEMO_IMAGE_IDS.length];
-  return `https://picsum.photos/id/${id}/700/520`;
 };
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -83,13 +81,93 @@ function TrashIcon() {
 }
 
 function DashboardPage() {
-  const [sections, setSections] = useState<GallerySection[]>(initialGallerySections);
-  const [images, setImages] = useState<GalleryImage[]>(initialGalleryImages);
-  const [selectedSectionId, setSelectedSectionId] = useState<string>(initialGallerySections[0]?.id ?? '');
+  const { user } = useAuth();
+  const [sections, setSections] = useState<GallerySection[]>([]);
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [selectedSectionId, setSelectedSectionId] = useState<string>('');
   const [newSectionName, setNewSectionName] = useState<string>('');
   const [lastLink, setLastLink] = useState<ShareLinkResult | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!firestoreDb || !user) {
+      setSections([]);
+      setImages([]);
+      setSelectedSectionId('');
+      setIsLoadingData(false);
+      return;
+    }
+
+    let sectionsReady = false;
+    let imagesReady = false;
+
+    const markReady = (): void => {
+      if (sectionsReady && imagesReady) {
+        setIsLoadingData(false);
+      }
+    };
+
+    setIsLoadingData(true);
+
+    void ensureDefaultSection(firestoreDb, user.uid).catch(() => {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo crear la seccion inicial por defecto.',
+      });
+    });
+
+    const unsubscribeSections = subscribeUserSections(
+      firestoreDb,
+      user.uid,
+      (nextSections) => {
+        setSections(nextSections);
+        setSelectedSectionId((current) => {
+          if (current && nextSections.some((section) => section.id === current)) {
+            return current;
+          }
+
+          return nextSections[0]?.id ?? '';
+        });
+
+        sectionsReady = true;
+        markReady();
+      },
+      () => {
+        setFeedback({
+          tone: 'warning',
+          message: 'No se pudieron cargar las secciones desde Firestore.',
+        });
+        sectionsReady = true;
+        markReady();
+      },
+    );
+
+    const unsubscribeImages = subscribeUserImages(
+      firestoreDb,
+      user.uid,
+      (nextImages) => {
+        setImages(nextImages);
+        imagesReady = true;
+        markReady();
+      },
+      () => {
+        setFeedback({
+          tone: 'warning',
+          message: 'No se pudieron cargar las imagenes desde Firestore.',
+        });
+        imagesReady = true;
+        markReady();
+      },
+    );
+
+    return () => {
+      unsubscribeSections();
+      unsubscribeImages();
+    };
+  }, [user]);
 
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? null,
@@ -104,8 +182,16 @@ function DashboardPage() {
   const countImagesBySection = (sectionId: string): number =>
     images.filter((image) => image.sectionId === sectionId).length;
 
-  const handleCreateSection = (event: FormEvent<HTMLFormElement>): void => {
+  const handleCreateSection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+
+    if (!firestoreDb || !user) {
+      setFeedback({
+        tone: 'warning',
+        message: 'No hay sesion valida para crear secciones.',
+      });
+      return;
+    }
 
     const trimmedName = newSectionName.trim();
     if (!trimmedName) {
@@ -116,61 +202,109 @@ function DashboardPage() {
       return;
     }
 
-    const nextSection: GallerySection = {
-      id: buildSectionId(trimmedName, sections),
-      name: trimmedName,
-    };
-
-    setSections((prev) => [...prev, nextSection]);
-    setSelectedSectionId(nextSection.id);
-    setNewSectionName('');
-    setFeedback({
-      tone: 'success',
-      message: `Seccion creada: ${nextSection.name}.`,
-    });
-  };
-
-  const handleCreateAutoImage = (): void => {
-    if (!selectedSection) {
+    try {
+      const sectionId = await createUserSection(firestoreDb, user.uid, trimmedName);
+      setSelectedSectionId(sectionId);
+      setNewSectionName('');
+      setFeedback({
+        tone: 'success',
+        message: `Seccion creada: ${trimmedName}.`,
+      });
+    } catch {
       setFeedback({
         tone: 'warning',
-        message: 'Selecciona una seccion antes de crear una imagen.',
+        message: 'No se pudo crear la seccion en Firestore.',
+      });
+    }
+  };
+
+  const handleUploadImage = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!firestoreDb || !firebaseStorage || !user || !selectedSection) {
+      setFeedback({
+        tone: 'warning',
+        message: 'No hay contexto suficiente para subir imagen (sesion/seccion/firebase).',
       });
       return;
     }
 
-    const nextSequence = getNextImageSequence(images, selectedSection.name);
-    const fileName = buildAutoImageName(selectedSection.name, nextSequence);
+    setIsUploading(true);
 
-    const nextImage: GalleryImage = {
-      id: buildImageId(),
-      fileName,
-      sectionId: selectedSection.id,
-      previewUrl: pickPreviewUrl(images.length),
-      isFavorite: false,
-    };
+    try {
+      const existingSectionImages = images.filter((image) => image.sectionId === selectedSection.id);
 
-    setImages((prev) => [nextImage, ...prev]);
-    setFeedback({
-      tone: 'success',
-      message: `Imagen creada con nombre automatico: ${fileName}.`,
-    });
+      const result = await uploadImageForSection({
+        db: firestoreDb,
+        storage: firebaseStorage,
+        uid: user.uid,
+        sectionId: selectedSection.id,
+        sectionName: selectedSection.name,
+        file,
+        existingSectionImages,
+      });
+
+      setFeedback({
+        tone: 'success',
+        message: `Imagen subida correctamente con nombre automatico: ${result.fileName}.`,
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo subir la imagen a Storage/Firestore.',
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleToggleFavorite = (imageId: string): void => {
-    setImages((prev) =>
-      prev.map((image) =>
-        image.id === imageId ? { ...image, isFavorite: !image.isFavorite } : image,
-      ),
-    );
+  const handleToggleFavorite = async (image: GalleryImage): Promise<void> => {
+    if (!firestoreDb || !user) {
+      return;
+    }
+
+    try {
+      await setUserImageFavorite({
+        db: firestoreDb,
+        uid: user.uid,
+        imageId: image.id,
+        isFavorite: !image.isFavorite,
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo actualizar el estado de favorita.',
+      });
+    }
   };
 
-  const handleDeleteImage = (imageId: string): void => {
-    setImages((prev) => prev.filter((image) => image.id !== imageId));
-    setFeedback({
-      tone: 'info',
-      message: 'Imagen eliminada de la galeria.',
-    });
+  const handleDeleteImage = async (image: GalleryImage): Promise<void> => {
+    if (!firestoreDb || !firebaseStorage || !user) {
+      return;
+    }
+
+    try {
+      await deleteUserImage({
+        db: firestoreDb,
+        storage: firebaseStorage,
+        uid: user.uid,
+        image,
+      });
+      setFeedback({
+        tone: 'info',
+        message: 'Imagen eliminada de Firestore y Storage.',
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo eliminar la imagen.',
+      });
+    }
   };
 
   const handleSectionShare = async (sectionId: string): Promise<void> => {
@@ -217,9 +351,12 @@ function DashboardPage() {
     setIsSharing(true);
 
     try {
+      const sourceFile = await buildSourceFileFromUrl(image.previewUrl, image.fileName);
+
       const outcome = await shareImageWithPolicy({
         imageTitle: image.fileName,
         temporaryLink: link,
+        sourceFile,
       });
 
       if (outcome.mode === 'direct-image') {
@@ -280,7 +417,7 @@ function DashboardPage() {
           <p>Crea nuevas secciones y comparte su galeria con un link temporal.</p>
         </div>
 
-        <form className="section-form" onSubmit={handleCreateSection}>
+        <form className="section-form" onSubmit={(event) => void handleCreateSection(event)}>
           <input
             type="text"
             value={newSectionName}
@@ -289,8 +426,9 @@ function DashboardPage() {
             }}
             placeholder="Ejemplo: Catalogo Mayo"
             aria-label="Nombre de nueva seccion"
+            disabled={isLoadingData}
           />
-          <button type="submit" className="primary-btn">
+          <button type="submit" className="primary-btn" disabled={isLoadingData}>
             Crear seccion
           </button>
         </form>
@@ -325,70 +463,86 @@ function DashboardPage() {
         <div className="panel-head with-actions">
           <div>
             <h2>Imagenes de la seccion</h2>
-            <p>Cards compactas con acciones flotantes en la esquina superior derecha.</p>
+            <p>Persistencia real con Firestore/Storage y acciones flotantes por imagen.</p>
           </div>
 
-          <button type="button" className="secondary-btn" onClick={handleCreateAutoImage}>
-            Agregar imagen auto
-          </button>
+          <label className={isUploading ? 'secondary-btn file-upload-btn disabled' : 'secondary-btn file-upload-btn'}>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                void handleUploadImage(event);
+              }}
+              disabled={isUploading || !selectedSection}
+            />
+            {isUploading ? 'Subiendo...' : 'Subir imagen'}
+          </label>
         </div>
 
-        <div className="gallery-grid">
-          {visibleImages.map((image) => (
-            <article key={image.id} className="image-card">
-              <div className="image-stage">
-                <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
+        {isLoadingData ? (
+          <p className="empty-state">Cargando datos de tu galeria...</p>
+        ) : (
+          <>
+            <div className="gallery-grid">
+              {visibleImages.map((image) => (
+                <article key={image.id} className="image-card">
+                  <div className="image-stage">
+                    <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
 
-                <div className="image-float-actions">
+                    <div className="image-float-actions">
+                      <button
+                        type="button"
+                        className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
+                        aria-label={
+                          image.isFavorite
+                            ? 'Quitar imagen de favoritas'
+                            : 'Agregar imagen a favoritas'
+                        }
+                        onClick={() => {
+                          void handleToggleFavorite(image);
+                        }}
+                      >
+                        <StarIcon filled={image.isFavorite} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="icon-btn danger"
+                        aria-label="Eliminar imagen"
+                        onClick={() => {
+                          void handleDeleteImage(image);
+                        }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="image-meta">
+                    <h3>{image.fileName}</h3>
+                    <p>{image.isFavorite ? 'Favorita activa' : 'Sin marcar como favorita'}</p>
+                  </div>
+
                   <button
                     type="button"
-                    className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
-                    aria-label={
-                      image.isFavorite ? 'Quitar imagen de favoritas' : 'Agregar imagen a favoritas'
-                    }
+                    className="primary-btn"
                     onClick={() => {
-                      handleToggleFavorite(image.id);
+                      void handleImageShare(image);
                     }}
+                    disabled={isSharing}
                   >
-                    <StarIcon filled={image.isFavorite} />
+                    Compartir ahora
                   </button>
+                </article>
+              ))}
+            </div>
 
-                  <button
-                    type="button"
-                    className="icon-btn danger"
-                    aria-label="Eliminar imagen"
-                    onClick={() => {
-                      handleDeleteImage(image.id);
-                    }}
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              </div>
-
-              <div className="image-meta">
-                <h3>{image.fileName}</h3>
-                <p>{image.isFavorite ? 'Favorita activa' : 'Sin marcar como favorita'}</p>
-              </div>
-
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  void handleImageShare(image);
-                }}
-                disabled={isSharing}
-              >
-                Compartir ahora
-              </button>
-            </article>
-          ))}
-        </div>
-
-        {visibleImages.length === 0 && (
-          <p className="empty-state">
-            Esta seccion no tiene imagenes. Usa "Agregar imagen auto" para crear la primera.
-          </p>
+            {visibleImages.length === 0 && (
+              <p className="empty-state">
+                Esta seccion no tiene imagenes. Usa "Subir imagen" para guardar la primera.
+              </p>
+            )}
+          </>
         )}
       </section>
 
@@ -410,4 +564,3 @@ function DashboardPage() {
 }
 
 export default DashboardPage;
-

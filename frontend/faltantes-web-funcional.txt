@@ -1,85 +1,80 @@
-﻿FALTANTES PARA WEB FUNCIONAL - EXITO AZUL
+FALTANTES PARA WEB FUNCIONAL - EXITO AZUL
+Fecha de actualizacion: 2026-04-02
 
 OBJETIVO
-Este documento resume lo que falta para pasar de "web desplegada" a "producto funcional real" para usuarios.
+Pasar de una web desplegada a un producto funcional y seguro para usuarios reales.
 
-PRIORIDAD 1 - CORE FUNCIONAL (BLOQUEANTE)
-1) Persistencia real en Firestore
-- Reemplazar mockData de secciones e imagenes por colecciones reales por usuario.
-- Guardar cambios de favoritas, eliminacion y creacion de secciones en base de datos.
+AVANCE ACTUAL (YA IMPLEMENTADO)
+[OK] Persistencia real en Firestore para secciones e imagenes (por usuario)
+[OK] Alta de seccion real en Firestore
+[OK] Favorita on/off real en Firestore
+[OK] Eliminacion real de imagen en Firestore + Storage
+[OK] Subida real de imagen a Firebase Storage
+[OK] Metadatos de imagen en Firestore (fileName, sectionId, isFavorite, storagePath, downloadUrl)
+[OK] Naming automatico de imagenes: nombre_seccion_numero
+[OK] Ruta "/" protegida por auth
+[OK] Ruta compartida "/s/:token" publica
 
-2) Subida real de imagenes a Firebase Storage
-- Implementar selector/subida de imagen.
-- Guardar metadatos en Firestore (fileName, sectionId, isFavorite, createdAt, storagePath, ownerId).
-- Mantener el naming automatico: nombre-seccion_numero.
-
-3) Registro real con Firebase Auth
+PENDIENTE PRIORIDAD 1 (BLOQUEANTE)
+1) Registro real con Firebase Auth
 - Conectar /register a createUserWithEmailAndPassword.
-- Mantener login con Google y agregar login email/password si se desea.
+- Opcional recomendado: login email/password ademas de Google.
 
-4) Guard de rutas completo
-- Mantener ruta / protegida.
-- Permitir /s/:token sin login (publica temporal).
-- Redirigir cualquier usuario no autenticado a /login (excepto compartidas).
+2) Vista compartida real (sin mock)
+- Reemplazar SharedGalleryPage con datos reales por token.
+- El token debe resolver una imagen o seccion puntual, no datos globales.
 
-PRIORIDAD 2 - COMPARTIR REAL Y SEGURO
-5) Links temporales generados en backend (Cloud Functions)
-- Crear function createShareLink (token fuerte + expiracion + targetType + targetId + ownerId).
+3) Links temporales en backend (obligatorio para seguridad real)
+- createShareLink en Cloud Functions (token fuerte + expiracion + ownerId + targetType + targetId).
 - Guardar links en Firestore (shareLinks).
 
-6) Revocacion de links
-- Crear function revokeShareLink.
-- El dueño debe poder invalidar link en cualquier momento.
+PENDIENTE PRIORIDAD 2 (SEGURIDAD Y CONTROL)
+4) Revocacion manual de links
+- Function revokeShareLink.
+- El usuario due�o debe poder invalidar un link antes de su vencimiento.
 
-7) Resolucion de galeria compartida por token
-- Crear endpoint/function resolveSharedGallery.
-- Validar: token existente, no revocado, no expirado.
-- Devolver solo la galeria puntual (imagen o seccion), sin exponer resto de datos.
+5) Validacion de links en backend
+- Token existente.
+- No expirado.
+- No revocado.
+- Owner y recurso validos.
 
-8) Politica sin descarga (refuerzo)
-- Mantener sin botones/menus de descarga.
-- Compartir: intento de archivo directo, fallback obligatorio a link temporal.
+6) Reglas de seguridad finales
+- Firestore rules por uid ownership.
+- Storage rules por uid + validacion de tipo y tamano.
+- Pruebas de acceso cruzado entre usuarios (debe fallar).
 
-PRIORIDAD 3 - ROBUSTEZ DE PRODUCTO
-9) Manejo de errores UX
-- Mensajes claros para errores de auth, subida, red y permisos.
-- Estados de loading/skeleton en vistas principales.
+PENDIENTE PRIORIDAD 3 (ROBUSTEZ)
+7) Validaciones funcionales
+- Limite de tamano por imagen.
+- Tipos MIME permitidos.
+- Limite de volumen por usuario (control de costos).
 
-10) Reglas de seguridad finales
-- Firestore Rules por uid y por ownership de recursos.
-- Storage Rules por uid + validaciones de tipo/tamano.
-- Probar acceso cruzado entre usuarios (debe ser denegado).
+8) Manejo de errores UX
+- Mensajes especificos por caso (auth, network, permisos, cuota).
+- Estados de carga y vacio en todas las vistas.
 
-11) Validaciones y limites
-- Limite por tamano y tipo de imagen.
-- Limite de volumen por usuario para control de costos.
-
-12) Auditoria y logs
-- Logging en functions para share links y errores.
+9) Auditoria y observabilidad
+- Logs en Cloud Functions (creacion/revocacion/resolucion de links).
 - Alertas basicas de fallos.
 
-PRIORIDAD 4 - OPERATIVO / PRODUCCION
-13) Entornos
+PENDIENTE PRIORIDAD 4 (GO-LIVE)
+10) Entornos y despliegue
 - Separar dev/staging/prod.
 - Variables .env por ambiente.
+- Revisar cache headers.
 
-14) Dominio y configuracion final
+11) Dominio y legal
 - Dominio custom (si aplica).
-- Revisar headers/caching para frontend.
-
-15) Legal
 - Politica de privacidad final (texto legal real).
-- Terminos de uso.
+- Terminos y condiciones.
 
-ORDEN RECOMENDADO DE EJECUCION (SPRINTS)
-Sprint 1:
-- Persistencia Firestore + Storage real + naming automatico
-
+SIGUIENTE ORDEN RECOMENDADO
 Sprint 2:
-- Registro/login real + guard de rutas cerrado
+- Registro real + login email/password (si se desea) + endurecer UX de auth
 
 Sprint 3:
-- Links temporales backend + revocacion + vista compartida real
+- Links temporales con backend + revocacion + vista compartida real por token
 
 Sprint 4:
-- Hardening de seguridad + manejo de errores + cierre de produccion
+- Reglas finales + validaciones de carga + logging/alertas + cierre de produccion
