@@ -46,26 +46,9 @@ function AppLayout() {
   };
 
   return (
-    <>
-      <aside className="fixed-banner" aria-label="Acciones de sesion">
-        <div className="banner-actions">
-          <button type="button" className="secondary-btn">
-            Configuracion
-          </button>
-
-          <button type="button" className="secondary-btn" onClick={() => void handleSessionClick()}>
-            {user ? 'Cerrar sesion' : 'Iniciar sesion'}
-          </button>
-
-          <button type="button" className="user-chip" aria-label="Usuario actual">
-            <UserIcon />
-            <span>{user?.displayName ?? 'Usuario'}</span>
-          </button>
-        </div>
-      </aside>
-
-      <div className="app-shell has-fixed-banner">
-        <header className="hero-panel">
+    <div className="app-shell">
+      <header className="hero-panel unified-banner">
+        <div className="hero-top-row">
           <div className="hero-main">
             <p className="eyebrow">Exito Azul</p>
             <h1>Galeria privada con links temporales y sin descarga</h1>
@@ -74,44 +57,59 @@ function AppLayout() {
             </p>
           </div>
 
-          <div className="hero-quick-actions">
-            {isSharedView && (
-              <Link className="primary-btn" to="/register">
-                Registrar nuevo usuario
-              </Link>
-            )}
+          <div className="banner-actions inline-actions" aria-label="Acciones de sesion">
+            <button type="button" className="secondary-btn">
+              Configuracion
+            </button>
+
+            <button type="button" className="secondary-btn" onClick={() => void handleSessionClick()}>
+              {user ? 'Cerrar sesion' : 'Iniciar sesion'}
+            </button>
+
+            <button type="button" className="user-chip" aria-label="Usuario actual">
+              <UserIcon />
+              <span>{user?.displayName ?? 'Usuario'}</span>
+            </button>
           </div>
+        </div>
 
-          <nav className="nav-links" aria-label="Navegacion principal">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        </header>
-
-        <main className="content">
-          <Outlet />
-        </main>
-
-        <footer className="site-footer">
-          <p>Exito Azul 2026</p>
-          <div className="footer-links">
-            <Link className="text-link" to="/privacy#privacy-policy">
-              Politica de privacidad
+        <div className="hero-quick-actions">
+          {isSharedView && (
+            <Link className="primary-btn" to="/register">
+              Registrar nuevo usuario
             </Link>
-            <a className="text-link" href="/register.html">
-              Registro HTML
-            </a>
-          </div>
-        </footer>
-      </div>
-    </>
+          )}
+        </div>
+
+        <nav className="nav-links" aria-label="Navegacion principal">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+      </header>
+
+      <main className="content">
+        <Outlet />
+      </main>
+
+      <footer className="site-footer">
+        <p>Exito Azul 2026</p>
+        <div className="footer-links">
+          <Link className="text-link" to="/privacy#privacy-policy">
+            Politica de privacidad
+          </Link>
+          <a className="text-link" href="/register.html">
+            Registro HTML
+          </a>
+        </div>
+      </footer>
+    </div>
   );
 }
 

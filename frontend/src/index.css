@@ -70,40 +70,44 @@ code {
   border-radius: 6px;
 }
 
-.fixed-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 10%;
-  min-height: 100vh;
-  border-right: 1px solid var(--line);
-  background: linear-gradient(180deg, #ffffff, #edf4ff);
-  box-shadow: var(--shadow);
-  padding: 1rem 0.6rem;
-  z-index: 20;
-}
-
 .banner-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.55rem;
+  align-items: center;
+  justify-content: flex-end;
 }
 
-.app-shell.has-fixed-banner {
-  margin-left: 10%;
-  width: 90%;
-  padding: 1rem;
+.app-shell {
   display: grid;
   gap: 1rem;
+  min-height: 100vh;
 }
 
 .hero-panel {
-  padding: 1.1rem;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  width: 100%;
+  padding: 0.95rem 1rem;
   background: linear-gradient(135deg, #ffffff, #edf4ff);
   border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  border-left: none;
+  border-right: none;
   box-shadow: var(--shadow);
   display: grid;
   gap: 0.9rem;
+}
+
+.hero-panel.unified-banner {
+  border-radius: 0;
+}
+
+.hero-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .hero-main {
@@ -219,7 +223,11 @@ code {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  width: 100%;
+  width: auto;
+}
+
+.inline-actions .user-chip {
+  max-width: 260px;
 }
 
 .user-chip svg {
@@ -230,6 +238,7 @@ code {
 .content {
   display: grid;
   gap: 1rem;
+  padding: 0 1rem;
 }
 
 .page-stack {
@@ -264,7 +273,7 @@ code {
 .status-grid {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .status-card {
@@ -536,6 +545,7 @@ code {
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
+  margin: 0 1rem 1rem;
 }
 
 .footer-links {
@@ -545,27 +555,37 @@ code {
 }
 
 @media (max-width: 980px) {
-  .fixed-banner {
-    width: 10%;
-    padding: 0.6rem 0.35rem;
+  .hero-panel {
+    padding: 0.8rem 0.65rem;
+  }
+
+  .hero-top-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .banner-actions.inline-actions {
+    justify-content: flex-start;
   }
 
   .secondary-btn,
   .user-chip {
-    font-size: 0.72rem;
-    padding: 0.4rem;
-  }
-
-  .app-shell.has-fixed-banner {
-    margin-left: 10%;
-    width: 90%;
-    padding: 0.65rem;
+    font-size: 0.75rem;
+    padding: 0.42rem 0.6rem;
   }
 
   .panel-head.with-actions,
   .site-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .content {
+    padding: 0 0.65rem;
+  }
+
+  .site-footer {
+    margin: 0 0.65rem 0.65rem;
   }
 
   .status-grid {
