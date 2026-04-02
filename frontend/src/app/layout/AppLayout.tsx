@@ -172,9 +172,7 @@ function AppLayout() {
               </span>
               <span>Exito Azul</span>
             </h1>
-            <p className="subtitle">
-              Galeria privada con links temporales y sin descarga.
-            </p>
+            <p className="subtitle">maxima privasidad</p>
           </div>
 
           <div className="banner-actions inline-actions" aria-label="Acciones de sesion">
