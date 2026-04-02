@@ -1,13 +1,19 @@
-﻿import { useState } from 'react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { getAuthErrorMessage } from '../auth/authErrors';
+import { useAuth } from '../auth/useAuth';
 
 function RegisterPage() {
+  const { registerWithEmail } = useAuth();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [message, setMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
     if (!fullName.trim() || !email.trim() || password.length < 6) {
@@ -15,7 +21,27 @@ function RegisterPage() {
       return;
     }
 
-    setMessage('Formulario listo. Conecta este submit a Firebase Auth para registro real.');
+    if (password !== confirmPassword) {
+      setMessage('La confirmacion de clave no coincide.');
+      return;
+    }
+
+    setIsLoading(true);
+    setMessage('');
+
+    try {
+      await registerWithEmail({
+        fullName,
+        email,
+        password,
+      });
+
+      navigate('/', { replace: true });
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error, 'No se pudo crear la cuenta con este email.'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -23,15 +49,16 @@ function RegisterPage() {
       <section className="panel share-hero">
         <p className="eyebrow">Registro</p>
         <h2>Crear una nueva cuenta</h2>
-        <p>Este formulario es base UI. El siguiente paso es conectarlo a Firebase Authentication.</p>
+        <p>Este formulario ya crea usuarios reales en Firebase Authentication.</p>
       </section>
 
       <section className="panel">
-        <form className="stack-form" onSubmit={handleSubmit}>
+        <form className="stack-form" onSubmit={(event) => void handleSubmit(event)}>
           <label>
             Nombre completo
             <input
               type="text"
+              autoComplete="name"
               value={fullName}
               onChange={(event) => {
                 setFullName(event.target.value);
@@ -44,6 +71,7 @@ function RegisterPage() {
             Email
             <input
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) => {
                 setEmail(event.target.value);
@@ -56,6 +84,7 @@ function RegisterPage() {
             Clave
             <input
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
@@ -64,11 +93,27 @@ function RegisterPage() {
             />
           </label>
 
-          <button type="submit" className="primary-btn">
-            Registrar usuario
+          <label>
+            Confirmar clave
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+              }}
+              placeholder="Repite la clave"
+            />
+          </label>
+
+          <button type="submit" className="primary-btn" disabled={isLoading}>
+            {isLoading ? 'Creando cuenta...' : 'Registrar usuario'}
           </button>
 
-          {message && <p className="inline-note">{message}</p>}
+          {message && <p className="inline-note warning-note">{message}</p>}
+          <p className="inline-note">
+            Si ya tienes cuenta, puedes <Link to="/login">iniciar sesion aqui</Link>.
+          </p>
         </form>
       </section>
     </div>
@@ -76,4 +121,3 @@ function RegisterPage() {
 }
 
 export default RegisterPage;
-

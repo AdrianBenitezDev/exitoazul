@@ -1,5 +1,14 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth';
 import { firebaseAuth } from '../lib/firebase';
 import AuthContext from './context';
 
@@ -36,6 +45,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await signInWithPopup(firebaseAuth, googleProvider);
   };
 
+  const signInWithEmail = async (email: string, password: string): Promise<void> => {
+    if (!firebaseAuth) {
+      throw new Error('Firebase Auth no esta configurado.');
+    }
+
+    await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+  };
+
+  const registerWithEmail = async (params: {
+    fullName: string;
+    email: string;
+    password: string;
+  }): Promise<void> => {
+    if (!firebaseAuth) {
+      throw new Error('Firebase Auth no esta configurado.');
+    }
+
+    const displayName = params.fullName.trim();
+    const credentials = await createUserWithEmailAndPassword(
+      firebaseAuth,
+      params.email.trim(),
+      params.password,
+    );
+
+    if (displayName) {
+      await updateProfile(credentials.user, {
+        displayName,
+      });
+    }
+  };
+
   const signOutUser = async (): Promise<void> => {
     if (!firebaseAuth) {
       return;
@@ -44,15 +84,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await signOut(firebaseAuth);
   };
 
-  const value = useMemo(
-    () => ({
-      user,
-      loading,
-      signInWithGoogle,
-      signOutUser,
-    }),
-    [user, loading],
-  );
+  const value = {
+    user,
+    loading,
+    signInWithGoogle,
+    signInWithEmail,
+    registerWithEmail,
+    signOutUser,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

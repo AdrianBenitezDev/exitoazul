@@ -14,65 +14,60 @@ AVANCE ACTUAL (YA IMPLEMENTADO)
 [OK] Naming automatico de imagenes: nombre_seccion_numero
 [OK] Ruta "/" protegida por auth
 [OK] Ruta compartida "/s/:token" publica
+[OK] Registro real con Firebase Auth (email/clave)
+[OK] Login real con email/clave y Google
 
 PENDIENTE PRIORIDAD 1 (BLOQUEANTE)
-1) Registro real con Firebase Auth
-- Conectar /register a createUserWithEmailAndPassword.
-- Opcional recomendado: login email/password ademas de Google.
-
-2) Vista compartida real (sin mock)
+1) Vista compartida real (sin mock)
 - Reemplazar SharedGalleryPage con datos reales por token.
 - El token debe resolver una imagen o seccion puntual, no datos globales.
 
-3) Links temporales en backend (obligatorio para seguridad real)
+2) Links temporales en backend (obligatorio para seguridad real)
 - createShareLink en Cloud Functions (token fuerte + expiracion + ownerId + targetType + targetId).
 - Guardar links en Firestore (shareLinks).
 
 PENDIENTE PRIORIDAD 2 (SEGURIDAD Y CONTROL)
-4) Revocacion manual de links
+3) Revocacion manual de links
 - Function revokeShareLink.
-- El usuario dueño debe poder invalidar un link antes de su vencimiento.
+- El usuario dueÃ±o debe poder invalidar un link antes de su vencimiento.
 
-5) Validacion de links en backend
+4) Validacion de links en backend
 - Token existente.
 - No expirado.
 - No revocado.
 - Owner y recurso validos.
 
-6) Reglas de seguridad finales
+5) Reglas de seguridad finales
 - Firestore rules por uid ownership.
 - Storage rules por uid + validacion de tipo y tamano.
 - Pruebas de acceso cruzado entre usuarios (debe fallar).
 
 PENDIENTE PRIORIDAD 3 (ROBUSTEZ)
-7) Validaciones funcionales
+6) Validaciones funcionales
 - Limite de tamano por imagen.
 - Tipos MIME permitidos.
 - Limite de volumen por usuario (control de costos).
 
-8) Manejo de errores UX
+7) Manejo de errores UX
 - Mensajes especificos por caso (auth, network, permisos, cuota).
 - Estados de carga y vacio en todas las vistas.
 
-9) Auditoria y observabilidad
+8) Auditoria y observabilidad
 - Logs en Cloud Functions (creacion/revocacion/resolucion de links).
 - Alertas basicas de fallos.
 
 PENDIENTE PRIORIDAD 4 (GO-LIVE)
-10) Entornos y despliegue
+9) Entornos y despliegue
 - Separar dev/staging/prod.
 - Variables .env por ambiente.
 - Revisar cache headers.
 
-11) Dominio y legal
+10) Dominio y legal
 - Dominio custom (si aplica).
 - Politica de privacidad final (texto legal real).
 - Terminos y condiciones.
 
 SIGUIENTE ORDEN RECOMENDADO
-Sprint 2:
-- Registro real + login email/password (si se desea) + endurecer UX de auth
-
 Sprint 3:
 - Links temporales con backend + revocacion + vista compartida real por token
 

@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
 
 type LocationState = {
@@ -7,25 +8,49 @@ type LocationState = {
 };
 
 function LoginPage() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [message, setMessage] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isEmailLoading, setIsEmailLoading] = useState<boolean>(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
 
   const fromPath = (location.state as LocationState | null)?.from ?? '/';
 
+  const handleEmailLogin = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    if (!email.trim() || !password.trim()) {
+      setMessage('Completa email y clave para continuar.');
+      return;
+    }
+
+    setIsEmailLoading(true);
+    setMessage('');
+
+    try {
+      await signInWithEmail(email, password);
+      navigate(fromPath, { replace: true });
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error, 'No se pudo iniciar sesion con email y clave.'));
+    } finally {
+      setIsEmailLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async (): Promise<void> => {
-    setIsLoading(true);
+    setIsGoogleLoading(true);
     setMessage('');
 
     try {
       await signInWithGoogle();
       navigate(fromPath, { replace: true });
-    } catch {
-      setMessage('No se pudo iniciar sesion con Google. Verifica configuracion de Firebase Auth.');
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error, 'No se pudo iniciar sesion con Google.'));
     } finally {
-      setIsLoading(false);
+      setIsGoogleLoading(false);
     }
   };
 
@@ -41,13 +66,53 @@ function LoginPage() {
       </section>
 
       <section className="panel">
+        <form className="stack-form" onSubmit={(event) => void handleEmailLogin(event)}>
+          <label>
+            Email
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+              }}
+              placeholder="tu-correo@dominio.com"
+            />
+          </label>
+
+          <label>
+            Clave
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
+              placeholder="Tu clave"
+            />
+          </label>
+
+          <button type="submit" className="primary-btn" disabled={isEmailLoading || isGoogleLoading}>
+            {isEmailLoading ? 'Ingresando...' : 'Iniciar sesion con email'}
+          </button>
+        </form>
+
+        <div className="auth-divider" role="presentation">
+          <span>o</span>
+        </div>
+
         <div className="stack-form">
-          <button type="button" className="primary-btn" onClick={handleGoogleLogin} disabled={isLoading}>
-            {isLoading ? 'Conectando...' : 'Iniciar sesion con Google'}
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => void handleGoogleLogin()}
+            disabled={isEmailLoading || isGoogleLoading}
+          >
+            {isGoogleLoading ? 'Conectando...' : 'Continuar con Google'}
           </button>
 
           <p className="inline-note">Ruta destino luego de login: {fromPath}</p>
-
           {message && <p className="inline-note warning-note">{message}</p>}
         </div>
       </section>
@@ -56,4 +121,3 @@ function LoginPage() {
 }
 
 export default LoginPage;
-
