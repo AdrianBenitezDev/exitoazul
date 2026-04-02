@@ -7,10 +7,6 @@ const navLinks = [
     label: 'Panel',
   },
   {
-    to: '/s/demo-token',
-    label: 'Vista compartida',
-  },
-  {
     to: '/register',
     label: 'Registro',
   },

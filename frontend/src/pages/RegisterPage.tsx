@@ -49,7 +49,7 @@ function RegisterPage() {
       <section className="panel share-hero">
         <p className="eyebrow">Registro</p>
         <h2>Crear una nueva cuenta</h2>
-        <p>Este formulario ya crea usuarios reales en Firebase Authentication.</p>
+        <p>Completa tus datos para crear una nueva cuenta.</p>
       </section>
 
       <section className="panel">

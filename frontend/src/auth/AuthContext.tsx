@@ -39,7 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signInWithGoogle = async (): Promise<void> => {
     if (!firebaseAuth) {
-      throw new Error('Firebase Auth no esta configurado.');
+      throw new Error('El servicio de autenticacion no esta configurado.');
     }
 
     await signInWithPopup(firebaseAuth, googleProvider);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signInWithEmail = async (email: string, password: string): Promise<void> => {
     if (!firebaseAuth) {
-      throw new Error('Firebase Auth no esta configurado.');
+      throw new Error('El servicio de autenticacion no esta configurado.');
     }
 
     await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     password: string;
   }): Promise<void> => {
     if (!firebaseAuth) {
-      throw new Error('Firebase Auth no esta configurado.');
+      throw new Error('El servicio de autenticacion no esta configurado.');
     }
 
     const displayName = params.fullName.trim();

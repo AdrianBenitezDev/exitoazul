@@ -97,7 +97,7 @@ const shareLinkByClient = async (url: string): Promise<void> => {
 
 const requireFunctions = () => {
   if (!firebaseFunctions) {
-    throw new Error('Firebase Functions no esta configurado en este entorno.');
+    throw new Error('El servicio de compartido no esta configurado en este entorno.');
   }
 
   return firebaseFunctions;

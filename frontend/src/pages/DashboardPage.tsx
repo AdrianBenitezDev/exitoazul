@@ -1,6 +1,5 @@
-﻿import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { firebaseIsConfigured } from '../config/env';
 import type { GalleryImage, GallerySection } from '../features/gallery/gallery.types';
 import {
   createUserSection,
@@ -141,7 +140,7 @@ function DashboardPage() {
       () => {
         setFeedback({
           tone: 'warning',
-          message: 'No se pudieron cargar las secciones desde Firestore.',
+          message: 'No se pudieron cargar las secciones.',
         });
         sectionsReady = true;
         markReady();
@@ -159,7 +158,7 @@ function DashboardPage() {
       () => {
         setFeedback({
           tone: 'warning',
-          message: 'No se pudieron cargar las imagenes desde Firestore.',
+          message: 'No se pudieron cargar las imagenes.',
         });
         imagesReady = true;
         markReady();
@@ -216,7 +215,7 @@ function DashboardPage() {
     } catch {
       setFeedback({
         tone: 'warning',
-        message: 'No se pudo crear la seccion en Firestore.',
+        message: 'No se pudo crear la seccion.',
       });
     }
   };
@@ -232,7 +231,7 @@ function DashboardPage() {
     if (!firestoreDb || !firebaseStorage || !user || !selectedSection) {
       setFeedback({
         tone: 'warning',
-        message: 'No hay contexto suficiente para subir imagen (sesion/seccion/firebase).',
+        message: 'No hay contexto suficiente para subir imagen.',
       });
       return;
     }
@@ -259,7 +258,7 @@ function DashboardPage() {
     } catch {
       setFeedback({
         tone: 'warning',
-        message: 'No se pudo subir la imagen a Storage/Firestore.',
+        message: 'No se pudo subir la imagen.',
       });
     } finally {
       setIsUploading(false);
@@ -300,7 +299,7 @@ function DashboardPage() {
       });
       setFeedback({
         tone: 'info',
-        message: 'Imagen eliminada de Firestore y Storage.',
+        message: 'Imagen eliminada correctamente.',
       });
     } catch {
       setFeedback({
@@ -426,15 +425,6 @@ function DashboardPage() {
   return (
     <div className="page-stack">
       <section className="panel status-grid">
-        <article className="status-card">
-          <h2>Estado Firebase</h2>
-          <p>
-            {firebaseIsConfigured
-              ? 'Configuracion detectada. Ya puedes conectar Auth, Firestore y Storage.'
-              : 'Falta configurar variables .env. Revisa .env.example para completar la conexion.'}
-          </p>
-        </article>
-
         <article className="status-card policy-card">
           <h2>Politica de seguridad</h2>
           <ul>
@@ -497,7 +487,7 @@ function DashboardPage() {
         <div className="panel-head with-actions">
           <div>
             <h2>Imagenes de la seccion</h2>
-            <p>Persistencia real con Firestore/Storage y acciones flotantes por imagen.</p>
+            <p>Gestion de imagenes con acciones flotantes por tarjeta.</p>
           </div>
 
           <label className={isUploading ? 'secondary-btn file-upload-btn disabled' : 'secondary-btn file-upload-btn'}>

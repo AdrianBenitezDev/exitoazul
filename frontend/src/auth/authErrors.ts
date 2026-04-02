@@ -9,7 +9,7 @@ const authErrorMessages: Record<string, string> = {
   'auth/invalid-credential': 'Email o clave incorrectos.',
   'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos.',
   'auth/network-request-failed': 'Fallo de red. Revisa tu conexion e intenta otra vez.',
-  'auth/operation-not-allowed': 'Metodo de login no habilitado en Firebase Auth.',
+  'auth/operation-not-allowed': 'Metodo de login no habilitado.',
 };
 
 export const getAuthErrorMessage = (
