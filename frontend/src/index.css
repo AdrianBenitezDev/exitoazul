@@ -115,16 +115,33 @@ code {
   gap: 0.45rem;
 }
 
+.brand-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+}
+
+.brand-icon {
+  width: 1.18em;
+  height: 1.18em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f7b500;
+}
+
+.brand-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .eyebrow {
   color: var(--blue-dark);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 0.76rem;
-}
-
-.hero-panel h1 {
-  font-size: clamp(1.15rem, 2vw, 1.65rem);
 }
 
 .subtitle {
@@ -153,6 +170,22 @@ code {
   color: var(--ink-soft);
   background: #ffffff;
   transition: all 180ms ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .nav-link:hover {
@@ -178,6 +211,17 @@ code {
   font-weight: 700;
   font-family: inherit;
   transition: all 160ms ease;
+}
+
+.action-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.action-with-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .primary-btn {
@@ -537,21 +581,36 @@ code {
 }
 
 .site-footer {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: #ffffff;
-  padding: 0.78rem 1rem;
+  border: none;
+  border-radius: 0;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 1.25rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
-  margin: 0 1rem 1rem;
+  margin: 0;
+}
+
+.footer-copy {
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .footer-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
+}
+
+.site-footer .text-link {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.site-footer .text-link:hover {
+  color: #ffffff;
 }
 
 @media (max-width: 980px) {
@@ -582,10 +641,6 @@ code {
 
   .content {
     padding: 0 0.65rem;
-  }
-
-  .site-footer {
-    margin: 0 0.65rem 0.65rem;
   }
 
   .status-grid {

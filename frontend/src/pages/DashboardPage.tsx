@@ -424,17 +424,6 @@ function DashboardPage() {
 
   return (
     <div className="page-stack">
-      <section className="panel status-grid">
-        <article className="status-card policy-card">
-          <h2>Politica de seguridad</h2>
-          <ul>
-            <li>La web no ofrece descarga de imagenes.</li>
-            <li>Si no hay envio directo, el fallback siempre es link temporal.</li>
-            <li>Cada imagen recibe nombre automatico: seccion_numero.</li>
-          </ul>
-        </article>
-      </section>
-
       <section className="panel">
         <div className="panel-head">
           <h2>Secciones</h2>
