@@ -192,14 +192,14 @@ function AppLayout() {
           </div>
         </div>
 
-        <div className="hero-quick-actions">
-          {isSharedView && (
+        {isSharedView && (
+          <div className="hero-quick-actions">
             <Link className="primary-btn action-with-icon" to="/register">
               <RegisterIcon />
               <span>Registrar nuevo usuario</span>
             </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         <nav className="nav-links" aria-label="Navegacion principal">
           {navLinks.map((link) => (

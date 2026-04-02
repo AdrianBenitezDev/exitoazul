@@ -139,6 +139,7 @@ function DashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+  const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -227,10 +228,42 @@ function DashboardPage() {
     [images, selectedSectionId],
   );
 
+  const expandedImage = useMemo(
+    () => images.find((image) => image.id === expandedImageId) ?? null,
+    [images, expandedImageId],
+  );
+
   useEffect(() => {
     const visibleIds = new Set(visibleImages.map((image) => image.id));
     setSelectedImageIds((current) => current.filter((imageId) => visibleIds.has(imageId)));
   }, [visibleImages]);
+
+  useEffect(() => {
+    if (!expandedImage) {
+      return;
+    }
+
+    if (expandedImage.sectionId !== selectedSectionId) {
+      setExpandedImageId(null);
+    }
+  }, [expandedImage, selectedSectionId]);
+
+  useEffect(() => {
+    if (!expandedImageId) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setExpandedImageId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedImageId]);
 
   const selectedVisibleImages = useMemo(
     () => visibleImages.filter((image) => selectedImageIds.includes(image.id)),
@@ -381,6 +414,9 @@ function DashboardPage() {
         uid: user.uid,
         image,
       });
+      if (expandedImageId === image.id) {
+        setExpandedImageId(null);
+      }
       setFeedback({
         tone: 'info',
         message: 'Imagen eliminada correctamente.',
@@ -392,6 +428,59 @@ function DashboardPage() {
       });
     }
   };
+
+  const renderImageActionButtons = (
+    image: GalleryImage,
+    className: string = 'image-float-actions',
+  ) => (
+    <div className={className}>
+      <button
+        type="button"
+        className="icon-btn share-file"
+        aria-label="Compartir imagen como archivo"
+        onClick={() => {
+          void handleImageShareFile(image);
+        }}
+        disabled={isSharing}
+      >
+        <ShareFileIcon />
+      </button>
+
+      <button
+        type="button"
+        className="icon-btn share-link"
+        aria-label="Compartir imagen por link"
+        onClick={() => {
+          void handleImageShareLink(image);
+        }}
+        disabled={isSharing}
+      >
+        <ShareLinkIcon />
+      </button>
+
+      <button
+        type="button"
+        className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
+        aria-label={image.isFavorite ? 'Quitar imagen de favoritas' : 'Agregar imagen a favoritas'}
+        onClick={() => {
+          void handleToggleFavorite(image);
+        }}
+      >
+        <StarIcon filled={image.isFavorite} />
+      </button>
+
+      <button
+        type="button"
+        className="icon-btn danger"
+        aria-label="Eliminar imagen"
+        onClick={() => {
+          void handleDeleteImage(image);
+        }}
+      >
+        <TrashIcon />
+      </button>
+    </div>
+  );
 
   const handleSectionShare = async (sectionId: string): Promise<void> => {
     setIsSharing(true);
@@ -755,7 +844,16 @@ function DashboardPage() {
               {visibleImages.map((image) => (
                 <article key={image.id} className="image-card">
                   <div className="image-stage">
-                    <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
+                    <button
+                      type="button"
+                      className="image-preview-trigger"
+                      onClick={() => {
+                        setExpandedImageId(image.id);
+                      }}
+                      aria-label={`Ampliar ${image.fileName}`}
+                    >
+                      <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
+                    </button>
 
                     <label className="image-select-chip">
                       <input
@@ -767,57 +865,7 @@ function DashboardPage() {
                       <span>Seleccionar</span>
                     </label>
 
-                    <div className="image-float-actions">
-                      <button
-                        type="button"
-                        className="icon-btn share-file"
-                        aria-label="Compartir imagen como archivo"
-                        onClick={() => {
-                          void handleImageShareFile(image);
-                        }}
-                        disabled={isSharing}
-                      >
-                        <ShareFileIcon />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="icon-btn share-link"
-                        aria-label="Compartir imagen por link"
-                        onClick={() => {
-                          void handleImageShareLink(image);
-                        }}
-                        disabled={isSharing}
-                      >
-                        <ShareLinkIcon />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
-                        aria-label={
-                          image.isFavorite
-                            ? 'Quitar imagen de favoritas'
-                            : 'Agregar imagen a favoritas'
-                        }
-                        onClick={() => {
-                          void handleToggleFavorite(image);
-                        }}
-                      >
-                        <StarIcon filled={image.isFavorite} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="icon-btn danger"
-                        aria-label="Eliminar imagen"
-                        onClick={() => {
-                          void handleDeleteImage(image);
-                        }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
+                    {renderImageActionButtons(image)}
                   </div>
 
                   <div className="image-meta">
@@ -836,6 +884,50 @@ function DashboardPage() {
           </>
         )}
       </section>
+
+      {expandedImage && (
+        <div
+          className="image-preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Vista ampliada de ${expandedImage.fileName}`}
+          onClick={() => {
+            setExpandedImageId(null);
+          }}
+        >
+          <div
+            className="image-preview-dialog"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <button
+              type="button"
+              className="image-preview-close"
+              onClick={() => {
+                setExpandedImageId(null);
+              }}
+              aria-label="Cerrar vista ampliada"
+            >
+              Cerrar
+            </button>
+
+            <div className="image-preview-stage">
+              <img src={expandedImage.previewUrl} alt={expandedImage.fileName} />
+              {renderImageActionButtons(expandedImage, 'image-preview-actions')}
+            </div>
+
+            <div className="image-preview-meta">
+              <h3>{expandedImage.fileName}</h3>
+              <p>
+                {expandedImage.isFavorite
+                  ? 'Favorita activa'
+                  : 'Sin marcar como favorita'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {feedback && (
         <section className={`panel feedback-panel ${feedback.tone}`}>
