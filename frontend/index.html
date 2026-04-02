@@ -1,0 +1,139 @@
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Exito Azul: galeria privada para guardar y compartir imagenes con links temporales."
+    />
+    <title>Exito Azul</title>
+    <style>
+      :root {
+        color: #111111;
+        background: #f6f9ff;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      .boot-shell {
+        width: min(1080px, calc(100% - 2rem));
+        margin: 1rem auto;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .boot-hero,
+      .boot-footer,
+      .boot-main {
+        border: 1px solid #d6e4ff;
+        border-radius: 14px;
+        background: #ffffff;
+      }
+
+      .boot-hero {
+        padding: 1rem;
+      }
+
+      .boot-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .boot-title {
+        margin: 0;
+        color: #0b5ed7;
+        font-size: 1.25rem;
+      }
+
+      .boot-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .boot-actions button,
+      .boot-actions a {
+        border: 1px solid #d6e4ff;
+        background: #fff;
+        border-radius: 9px;
+        padding: 0.45rem 0.7rem;
+        text-decoration: none;
+        color: #303743;
+        font-weight: 700;
+      }
+
+      .boot-main {
+        min-height: 55vh;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 1.4rem;
+      }
+
+      .boot-main p {
+        margin: 0.4rem 0 0;
+      }
+
+      .boot-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 0.8rem 1rem;
+      }
+
+      .boot-footer a {
+        color: #08439b;
+        font-weight: 700;
+      }
+
+      @media (max-width: 700px) {
+        .boot-shell {
+          width: calc(100% - 1rem);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-shell">
+        <header class="boot-hero">
+          <div class="boot-head">
+            <h1 class="boot-title">Exito Azul</h1>
+            <div class="boot-actions">
+              <button type="button">Iniciar sesion</button>
+              <button type="button">Configuracion</button>
+              <a href="/register.html">Registro</a>
+            </div>
+          </div>
+        </header>
+
+        <main class="boot-main">
+          <div>
+            <h2>Inicializando aplicacion...</h2>
+            <p>Si este mensaje persiste, ejecuta la app con npm run dev.</p>
+            <noscript>Activa JavaScript para cargar la experiencia completa.</noscript>
+          </div>
+        </main>
+
+        <footer class="boot-footer">
+          <span>Exito Azul 2026</span>
+          <a href="/privacy#privacy-policy">Politica de privacidad</a>
+        </footer>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

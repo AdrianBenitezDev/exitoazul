@@ -1,0 +1,175 @@
+﻿EVALUACION Y DESARROLLO DE IDEA - EXITO AZUL
+
+1) RESUMEN DE LA IDEA
+Exito Azul es un sistema privado para guardar fotos creadas en Instagram (por sus filtros), organizarlas en carpetas/secciones y compartirlas luego por WhatsApp, Telegram o Instagram cuando el usuario quiera.
+
+2) RECOMENDACION DE PRODUCTO
+Conviene empezar como pagina web responsive (PWA) en lugar de app nativa.
+Motivos:
+- Publicacion mas rapida y menor costo inicial.
+- Se integra bien con el flujo "Compartir" desde el celular.
+- Luego puede evolucionar a app nativa si hace falta.
+
+3) PROPUESTA DE VALOR
+- "Tu galeria privada de fotos con filtros de Instagram, ordenada y lista para compartir en segundos."
+- Diferencial: guardado especial y organizacion personal, no solo almacenamiento.
+
+4) FLUJO PRINCIPAL DEL USUARIO
+1. El usuario inicia sesion (Google o email/password).
+2. Desde Instagram toca Compartir y envia la imagen a Exito Azul (web app).
+3. La imagen se guarda en Firebase Storage.
+4. La app crea metadatos en Firestore (usuario, carpeta, fecha, favorito, etiquetas).
+5. El usuario organiza en carpetas/secciones.
+6. Puede marcar/desmarcar favoritos.
+7. Puede seleccionar una o varias imagenes.
+8. Puede generar link temporal para una imagen o para una seccion.
+9. El amigo/cliente solo ve esa galeria puntual compartida.
+10. Si el envio directo de imagen no es compatible, se comparte link temporal por defecto.
+11. No existe opcion de descarga desde la web.
+
+5) FUNCIONALIDADES MVP (primera version)
+- Registro/Login con Firebase Auth (Google + email/password).
+- Subida de imagenes desde celular.
+- Carpeta predeterminada "Favoritas".
+- Crear, renombrar y eliminar secciones.
+- Mover imagenes entre secciones.
+- Marcar imagenes como favoritas.
+- Eliminar imagenes.
+- Vista de galeria por seccion.
+- Compartir una o varias imagenes.
+- Crear links temporales de una imagen o de una seccion.
+- Revocar links compartidos en cualquier momento.
+- Compartir imagen directa a apps (si el dispositivo/navegador lo soporta).
+- Fallback obligatorio a link temporal si no se puede envio directo.
+- Sin boton ni endpoint publico de descarga desde la web.
+
+6) FUNCIONALIDADES V2 (segunda etapa)
+- Busqueda por nombre/fecha/etiquetas.
+- Links temporales con fecha de vencimiento configurable.
+- Links con clave opcional y limite de vistas.
+- Estadisticas basicas (imagenes guardadas por mes).
+- Compresion automatica de imagenes para ahorrar costos.
+- Notas o descripciones por imagen.
+
+7) ARQUITECTURA TECNICA (FIREBASE)
+- Frontend: React o Vue + responsive design.
+- Hosting: Firebase Hosting.
+- Auth: Firebase Authentication.
+- Archivos: Firebase Storage.
+- Base de datos: Firestore.
+- Logica backend: Cloud Functions (recomendado para links temporales y validaciones).
+
+8) MODELO DE DATOS SUGERIDO
+Coleccion users/{uid}
+- name
+- email
+- createdAt
+
+Subcoleccion users/{uid}/sections/{sectionId}
+- name
+- isDefault (true/false)
+- createdAt
+
+Subcoleccion users/{uid}/images/{imageId}
+- fileUrl
+- storagePath
+- sectionId
+- isFavorite
+- createdAt
+- updatedAt
+- source (instagram)
+
+Subcoleccion users/{uid}/shareLinks/{linkId}
+- type (image | section)
+- targetId (imageId o sectionId)
+- tokenHash
+- expiresAt
+- maxViews (opcional)
+- currentViews
+- passwordHash (opcional)
+- isRevoked
+- createdAt
+
+9) SEGURIDAD (CLAVE)
+Regla principal: cada usuario solo ve, edita y elimina sus propios datos.
+- Firestore Rules por uid.
+- Storage Rules por uid.
+- Validar tipo y tamano de archivo.
+- Limites por usuario para controlar costos.
+- Links temporales firmados y con expiracion real.
+- Opcion de revocacion inmediata por parte del usuario.
+- URLs privadas no indexables y tokens de alta entropia.
+- Encabezados HTTP para reducir cache persistente (cuando aplique).
+
+10) EXPERIENCIA Y DISENO
+Paleta solicitada:
+- Azul principal: #0B5ED7
+- Blanco: #FFFFFF
+- Negro para texto: #111111
+
+Lineamientos UI:
+- Galeria limpia tipo tarjetas.
+- Boton de accion visible: "Guardar" y "Compartir".
+- Navegacion por secciones en barra inferior (mobile first).
+- Estados vacios claros: "Todavia no tienes imagenes en esta seccion".
+
+11) RIESGOS Y SOLUCIONES
+Riesgo: friccion al compartir desde Instagram.
+Solucion: optimizar onboarding con tutorial de 3 pasos.
+
+Riesgo: costos de almacenamiento.
+Solucion: compresion, limites por plan y limpieza automatica opcional.
+
+Riesgo: confusion entre carpetas y favoritos.
+Solucion: favoritos como "etiqueta global" y no como carpeta aislada.
+
+Riesgo: no todos los celulares/navegadores permiten compartir archivo directo a WhatsApp/Telegram desde web.
+Solucion: estrategia dual.
+- Intentar compartir archivo directo con Web Share API (si es compatible).
+- Si no es compatible, fallback obligatorio a link temporal privado.
+- No ofrecer descarga manual desde la interfaz.
+
+12) PLAN DE IMPLEMENTACION (4 SEMANAS)
+Semana 1:
+- Configuracion Firebase (Auth, Storage, Firestore, Hosting)
+- Maquetado base y login
+
+Semana 2:
+- Subida de imagenes y galeria
+- Secciones/carpetas (crear, editar, mover)
+
+Semana 3:
+- Favoritos, eliminacion y seleccion multiple
+- Links temporales (imagen/seccion), vencimiento y revocacion
+
+Semana 4:
+- Compartir directo (Web Share API) + fallback
+- Reglas de seguridad, pruebas y deploy final
+
+13) ACLARACION TECNICA SOBRE WHATSAPP Y TELEGRAM
+Si, es posible compartir "solo la imagen", pero depende del dispositivo y navegador.
+
+Escenario A (ideal):
+- En celulares compatibles, la web puede usar Web Share API con archivo y abrir el selector para enviar la imagen directa a WhatsApp o Telegram.
+
+Escenario B (fallback):
+- Si el navegador no soporta compartir archivo, se comparte un link temporal privado.
+- La web no debe ofrecer descarga de imagen al celular/PC.
+
+Importante:
+- Los links de WhatsApp/Telegram por URL normalmente comparten texto/link, no adjuntan archivo binario automaticamente.
+- Por eso conviene implementar flujo dual (archivo directo + link temporal obligatorio).
+
+14) POLITICA DE NO DESCARGA
+- Bajo ninguna circunstancia la web ofrece opcion "Descargar imagen".
+- Sin menu de descarga, sin boton de guardar y sin endpoint publico de descarga directa.
+- Compartir externo: prioridad archivo directo; si falla, solo link temporal.
+- Objetivo: minimizar rastro local en celular/PC desde opciones de la plataforma.
+
+15) LIMITE TECNICO (TRANSPARENCIA)
+- Ninguna web puede garantizar 0 rastro absoluto en todos los dispositivos.
+- El navegador/SO puede generar cache temporal y el usuario puede hacer captura de pantalla.
+- Lo que si puede garantizarse en producto: no dar herramientas de descarga y usar links temporales/revocables para reducir exposicion.
+
+16) CONCLUSION
+La idea es viable, clara y con buen foco en una necesidad real: guardar y reutilizar fotos filtradas de Instagram en un espacio privado y organizado. Empezar con web app en Firebase reduce tiempo, costo y riesgo, y permite validar rapido antes de invertir en una app nativa.

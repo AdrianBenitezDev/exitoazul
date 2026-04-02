@@ -1,0 +1,104 @@
+﻿CHECKLIST PRODUCCION - EXITO AZUL
+
+1) PREPARACION DEL PROYECTO
+- Crear proyecto Firebase de produccion (separado del entorno de pruebas).
+- Configurar plan Blaze para usar Storage, Functions y dominios custom.
+- Definir ambientes: local, staging, produccion.
+- Crear archivos .env por ambiente con claves correctas.
+
+2) AUTHENTICATION (FIREBASE AUTH)
+- Habilitar proveedores:
+  - Google
+  - Email/Password
+- Configurar dominio autorizado para produccion.
+- Definir politica de contrasena minima.
+- Implementar flujo real en /register (createUserWithEmailAndPassword).
+- Implementar login/logout reales (signIn/signOut).
+
+3) FIRESTORE (MODELO Y SEGURIDAD)
+- Crear colecciones base:
+  - users/{uid}
+  - users/{uid}/sections/{sectionId}
+  - users/{uid}/images/{imageId}
+  - users/{uid}/shareLinks/{linkId}
+- Guardar nombre automatico de imagen como fileName (formato seccion_numero).
+- Activar TTL/expiracion para documentos de links temporales (si aplica con politica interna).
+- Ajustar firestore.rules para:
+  - acceso solo por uid propietario
+  - lectura publica solo para links compartidos validos
+  - bloqueo total a escrituras publicas
+- Crear indices requeridos (Firestore Indexes) segun queries reales.
+
+4) STORAGE (ARCHIVOS)
+- Estructura recomendada:
+  - users/{uid}/images/{imageId}
+- Restringir descargas directas desde frontend (sin endpoint publico de descarga).
+- Aplicar storage.rules por uid.
+- Validar tipo mime y tamano maximo de archivo.
+- Definir politica de limpieza para archivos huerfanos.
+
+5) CLOUD FUNCTIONS (OBLIGATORIO PARA LINKS TEMPORALES)
+- Funcion createShareLink:
+  - recibe targetType y targetId
+  - genera token fuerte
+  - guarda hash/token + expiresAt + isRevoked=false
+- Funcion revokeShareLink:
+  - solo dueño puede revocar
+- Endpoint de lectura de galeria compartida:
+  - valida token, expiracion y revocacion
+  - retorna solo la galeria puntual
+- No devolver rutas de descarga directa de Storage.
+
+6) POLITICA NO DESCARGA
+- UI: no incluir botones/menus de descargar.
+- Backend: evitar URLs permanentes que permitan descarga directa.
+- Compartir:
+  - si hay soporte de share de archivo -> envio directo
+  - si no hay soporte -> link temporal obligatorio
+
+7) APP CHECK Y ENDURECIMIENTO
+- Activar Firebase App Check en:
+  - Firestore
+  - Storage
+  - Functions
+- Configurar rate limiting en endpoints de links compartidos.
+- Validar y sanitizar todos los inputs de formularios.
+- Configurar cabeceras de cache/control en Hosting para minimizar rastro local.
+
+8) HOSTING Y DOMINIO
+- Publicar con Firebase Hosting.
+- Configurar dominio personalizado + HTTPS.
+- Configurar rewrites para SPA (index.html).
+- Configurar pagina 404 personalizada.
+
+9) OBSERVABILIDAD
+- Activar logs estructurados en Functions.
+- Configurar alertas (errores 5xx, picos de trafico, uso de cuota).
+- Integrar Analytics/Crash reporting (si aplica).
+
+10) QA ANTES DE RELEASE
+- Casos criticos:
+  - registro/login/logout
+  - crear seccion
+  - nombre automatico de imagen seccion_numero
+  - marcar favorita y eliminar
+  - compartir directo y fallback a link
+  - expiracion y revocacion de links
+  - acceso denegado a contenido de otro usuario
+- Pruebas responsive (mobile/desktop).
+- Prueba de navegadores clave (Chrome, Edge, Safari movil).
+
+11) COMANDOS BASE DE DESPLIEGUE
+- npm run lint
+- npm run build
+- firebase login
+- firebase use <proyecto-produccion>
+- firebase deploy --only hosting
+- firebase deploy --only firestore:rules,storage
+- firebase deploy --only functions
+
+12) TAREAS LEGALES Y OPERATIVAS
+- Redactar politica de privacidad final (texto legal real).
+- Definir terminos de uso.
+- Definir responsable de soporte y canal de contacto.
+- Documentar plan de backup y recuperacion.

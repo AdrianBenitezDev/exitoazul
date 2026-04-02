@@ -1,0 +1,26 @@
+nombre de sistema "exito azul"
+nose si hacer una aplicación o una pagina web
+
+es un sistema donde el usuario sube imagenes que se saca desde instagram y las envia a mi sistema
+para un "guardado especial", nose ve en ningun lado mas que en mi sistema
+
+el usuario puede asceder a mi sistema y emviar las imagenes que seleccione por whatsapp o telegram
+
+1. las fotos se sacan desde la aplicación en instagram (porque tiene filtros)
+2. se comparten a la web desde instragram 
+3. quedan guardadas en el servidor (firebase)
+
+5. se selecciona una imagen o varias y se puede compartir con usuarios de instagram o de whatapp
+
+7.paleta de colores azul y blanco, negro para las letras
+
+8. el usuario puede armar sus propias secciones / carpetas para guardar las imagenes
+9. puede eliminar las imagenes
+10. seccion predeterminada como favoritas
+11. se puede marcar cualquier imagen como favorita (aparecera en favoritas)
+12. se pueden mover las imagenes de seccion 
+
+se accede con la cuenta de google o con usuario y contraseña
+
+el proyecto es gestionado por firebase 
+
