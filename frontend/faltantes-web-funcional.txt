@@ -1,0 +1,85 @@
+﻿FALTANTES PARA WEB FUNCIONAL - EXITO AZUL
+
+OBJETIVO
+Este documento resume lo que falta para pasar de "web desplegada" a "producto funcional real" para usuarios.
+
+PRIORIDAD 1 - CORE FUNCIONAL (BLOQUEANTE)
+1) Persistencia real en Firestore
+- Reemplazar mockData de secciones e imagenes por colecciones reales por usuario.
+- Guardar cambios de favoritas, eliminacion y creacion de secciones en base de datos.
+
+2) Subida real de imagenes a Firebase Storage
+- Implementar selector/subida de imagen.
+- Guardar metadatos en Firestore (fileName, sectionId, isFavorite, createdAt, storagePath, ownerId).
+- Mantener el naming automatico: nombre-seccion_numero.
+
+3) Registro real con Firebase Auth
+- Conectar /register a createUserWithEmailAndPassword.
+- Mantener login con Google y agregar login email/password si se desea.
+
+4) Guard de rutas completo
+- Mantener ruta / protegida.
+- Permitir /s/:token sin login (publica temporal).
+- Redirigir cualquier usuario no autenticado a /login (excepto compartidas).
+
+PRIORIDAD 2 - COMPARTIR REAL Y SEGURO
+5) Links temporales generados en backend (Cloud Functions)
+- Crear function createShareLink (token fuerte + expiracion + targetType + targetId + ownerId).
+- Guardar links en Firestore (shareLinks).
+
+6) Revocacion de links
+- Crear function revokeShareLink.
+- El dueño debe poder invalidar link en cualquier momento.
+
+7) Resolucion de galeria compartida por token
+- Crear endpoint/function resolveSharedGallery.
+- Validar: token existente, no revocado, no expirado.
+- Devolver solo la galeria puntual (imagen o seccion), sin exponer resto de datos.
+
+8) Politica sin descarga (refuerzo)
+- Mantener sin botones/menus de descarga.
+- Compartir: intento de archivo directo, fallback obligatorio a link temporal.
+
+PRIORIDAD 3 - ROBUSTEZ DE PRODUCTO
+9) Manejo de errores UX
+- Mensajes claros para errores de auth, subida, red y permisos.
+- Estados de loading/skeleton en vistas principales.
+
+10) Reglas de seguridad finales
+- Firestore Rules por uid y por ownership de recursos.
+- Storage Rules por uid + validaciones de tipo/tamano.
+- Probar acceso cruzado entre usuarios (debe ser denegado).
+
+11) Validaciones y limites
+- Limite por tamano y tipo de imagen.
+- Limite de volumen por usuario para control de costos.
+
+12) Auditoria y logs
+- Logging en functions para share links y errores.
+- Alertas basicas de fallos.
+
+PRIORIDAD 4 - OPERATIVO / PRODUCCION
+13) Entornos
+- Separar dev/staging/prod.
+- Variables .env por ambiente.
+
+14) Dominio y configuracion final
+- Dominio custom (si aplica).
+- Revisar headers/caching para frontend.
+
+15) Legal
+- Politica de privacidad final (texto legal real).
+- Terminos de uso.
+
+ORDEN RECOMENDADO DE EJECUCION (SPRINTS)
+Sprint 1:
+- Persistencia Firestore + Storage real + naming automatico
+
+Sprint 2:
+- Registro/login real + guard de rutas cerrado
+
+Sprint 3:
+- Links temporales backend + revocacion + vista compartida real
+
+Sprint 4:
+- Hardening de seguridad + manejo de errores + cierre de produccion

@@ -1,5 +1,5 @@
-﻿import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+﻿import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/useAuth';
 
 const navLinks = [
   {
@@ -13,6 +13,10 @@ const navLinks = [
   {
     to: '/register',
     label: 'Registro',
+  },
+  {
+    to: '/login',
+    label: 'Login',
   },
 ];
 
@@ -33,14 +37,40 @@ function UserIcon() {
 
 function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOutUser } = useAuth();
   const isSharedView = location.pathname.startsWith('/s/');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+
+  const handleSessionClick = async (): Promise<void> => {
+    if (user) {
+      await signOutUser();
+    }
+
+    navigate('/login');
+  };
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="hero-row">
-          <div className="brand-block">
+    <>
+      <aside className="fixed-banner" aria-label="Acciones de sesion">
+        <div className="banner-actions">
+          <button type="button" className="secondary-btn">
+            Configuracion
+          </button>
+
+          <button type="button" className="secondary-btn" onClick={() => void handleSessionClick()}>
+            {user ? 'Cerrar sesion' : 'Iniciar sesion'}
+          </button>
+
+          <button type="button" className="user-chip" aria-label="Usuario actual">
+            <UserIcon />
+            <span>{user?.displayName ?? 'Usuario'}</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="app-shell has-fixed-banner">
+        <header className="hero-panel">
+          <div className="hero-main">
             <p className="eyebrow">Exito Azul</p>
             <h1>Galeria privada con links temporales y sin descarga</h1>
             <p className="subtitle">
@@ -48,64 +78,46 @@ function AppLayout() {
             </p>
           </div>
 
-          <div className="hero-actions">
+          <div className="hero-quick-actions">
             {isSharedView && (
-              <Link className="secondary-btn" to="/register">
-                Registrarse
+              <Link className="primary-btn" to="/register">
+                Registrar nuevo usuario
               </Link>
             )}
-
-            <button type="button" className="secondary-btn">
-              Configuracion
-            </button>
-
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => {
-                setIsAuthenticated((prev) => !prev);
-              }}
-            >
-              {isAuthenticated ? 'Cerrar sesion' : 'Iniciar sesion'}
-            </button>
-
-            <button type="button" className="user-chip" aria-label="Usuario actual">
-              <UserIcon />
-              <span>{isAuthenticated ? 'Usuario' : 'Invitado'}</span>
-            </button>
           </div>
-        </div>
 
-        <nav className="nav-links" aria-label="Navegacion principal">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
+          <nav className="nav-links" aria-label="Navegacion principal">
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+        </header>
 
-      <main className="content">
-        <Outlet />
-      </main>
+        <main className="content">
+          <Outlet />
+        </main>
 
-      <footer className="site-footer">
-        <p>Exito Azul 2026</p>
-        <div className="footer-links">
-          <Link className="text-link" to="/privacy#privacy-policy">
-            Politica de privacidad
-          </Link>
-          <a className="text-link" href="/register.html">
-            Registro HTML
-          </a>
-        </div>
-      </footer>
-    </div>
+        <footer className="site-footer">
+          <p>Exito Azul 2026</p>
+          <div className="footer-links">
+            <Link className="text-link" to="/privacy#privacy-policy">
+              Politica de privacidad
+            </Link>
+            <a className="text-link" href="/register.html">
+              Registro HTML
+            </a>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }
 
 export default AppLayout;
+

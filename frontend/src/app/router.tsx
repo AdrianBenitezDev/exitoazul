@@ -1,8 +1,10 @@
 ﻿import { createBrowserRouter } from 'react-router-dom';
 import AppLayout from './layout/AppLayout';
+import RequireAuth from '../auth/RequireAuth';
 import DashboardPage from '../pages/DashboardPage';
 import SharedGalleryPage from '../pages/SharedGalleryPage';
 import RegisterPage from '../pages/RegisterPage';
+import LoginPage from '../pages/LoginPage';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
@@ -13,7 +15,15 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        element: (
+          <RequireAuth>
+            <DashboardPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'login',
+        element: <LoginPage />,
       },
       {
         path: 'register',

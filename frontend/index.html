@@ -23,9 +23,35 @@
         margin: 0;
       }
 
+      .boot-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 10%;
+        min-height: 100vh;
+        border-right: 1px solid #d6e4ff;
+        background: #ffffff;
+        padding: 0.8rem 0.4rem;
+      }
+
+      .boot-banner-actions {
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .boot-banner-actions button {
+        border: 1px solid #d6e4ff;
+        background: #fff;
+        border-radius: 9px;
+        padding: 0.45rem;
+        color: #303743;
+        font-weight: 700;
+      }
+
       .boot-shell {
-        width: min(1080px, calc(100% - 2rem));
-        margin: 1rem auto;
+        margin-left: 10%;
+        width: 90%;
+        padding: 1rem;
         display: grid;
         gap: 1rem;
       }
@@ -42,38 +68,27 @@
         padding: 1rem;
       }
 
-      .boot-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.8rem;
-        align-items: center;
-        flex-wrap: wrap;
+      .boot-eyebrow {
+        margin: 0;
+        color: #08439b;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
       .boot-title {
-        margin: 0;
+        margin: 0.45rem 0 0;
         color: #0b5ed7;
         font-size: 1.25rem;
       }
 
-      .boot-actions {
-        display: flex;
-        gap: 0.5rem;
-      }
-
-      .boot-actions button,
-      .boot-actions a {
-        border: 1px solid #d6e4ff;
-        background: #fff;
-        border-radius: 9px;
-        padding: 0.45rem 0.7rem;
-        text-decoration: none;
+      .boot-subtitle {
+        margin: 0.5rem 0 0;
         color: #303743;
-        font-weight: 700;
       }
 
       .boot-main {
-        min-height: 55vh;
+        min-height: 52vh;
         display: grid;
         place-items: center;
         text-align: center;
@@ -97,26 +112,25 @@
         color: #08439b;
         font-weight: 700;
       }
-
-      @media (max-width: 700px) {
-        .boot-shell {
-          width: calc(100% - 1rem);
-        }
-      }
     </style>
   </head>
   <body>
     <div id="root">
+      <aside class="boot-banner">
+        <div class="boot-banner-actions">
+          <button type="button">Configuracion</button>
+          <button type="button">Cerrar sesion</button>
+          <button type="button">Usuario</button>
+        </div>
+      </aside>
+
       <div class="boot-shell">
         <header class="boot-hero">
-          <div class="boot-head">
-            <h1 class="boot-title">Exito Azul</h1>
-            <div class="boot-actions">
-              <button type="button">Iniciar sesion</button>
-              <button type="button">Configuracion</button>
-              <a href="/register.html">Registro</a>
-            </div>
-          </div>
+          <p class="boot-eyebrow">Exito Azul</p>
+          <h1 class="boot-title">Galeria privada con links temporales y sin descarga</h1>
+          <p class="boot-subtitle">
+            Envio directo si hay compatibilidad. Si no, fallback automatico a link temporal.
+          </p>
         </header>
 
         <main class="boot-main">

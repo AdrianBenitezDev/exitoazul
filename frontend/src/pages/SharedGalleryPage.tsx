@@ -16,11 +16,6 @@ function SharedGalleryPage() {
           Esta vista es solo lectura. No hay acceso al resto de secciones y no existe opcion de
           descarga.
         </p>
-        <div>
-          <Link className="primary-btn" to="/register">
-            Registrar nuevo usuario
-          </Link>
-        </div>
       </section>
 
       <section className="panel">
