@@ -7,6 +7,29 @@ type LocationState = {
   from?: string;
 };
 
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.3c-.2 1.3-1 2.5-2.2 3.3v2.8h3.5c2-1.8 3-4.5 3-8z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 22c2.7 0 4.9-.9 6.5-2.5l-3.5-2.8c-1 .7-2.2 1.2-3.6 1.2-2.8 0-5.1-1.9-6-4.4H1.8v2.9C3.4 19.6 7.4 22 12 22z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.4 13.5c-.2-.7-.3-1.3-.3-2s.1-1.4.3-2V6.6H1.8A10 10 0 0 0 1 11.5c0 1.7.4 3.4 1.2 4.9l3.2-2.9z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.4c1.5 0 2.9.5 4 1.5l3-3C17 1.9 14.7 1 12 1 7.4 1 3.4 3.4 1.8 6.6l3.6 2.9c.9-2.5 3.2-4.1 6-4.1z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
 function LoginPage() {
   const { user, loading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
@@ -70,8 +93,8 @@ function LoginPage() {
   };
 
   return (
-    <div className="page-stack">
-      <section className="panel share-hero">
+    <div className="page-stack login-page">
+      <section className="panel share-hero login-hero">
         <p className="eyebrow">Login</p>
         <h2>Accede para administrar tu galeria privada</h2>
         <p>
@@ -80,8 +103,8 @@ function LoginPage() {
         </p>
       </section>
 
-      <section className="panel">
-        <form className="stack-form" onSubmit={(event) => void handleEmailLogin(event)}>
+      <section className="panel login-panel">
+        <form className="stack-form login-form" onSubmit={(event) => void handleEmailLogin(event)}>
           <label>
             Email
             <input
@@ -113,21 +136,21 @@ function LoginPage() {
           </button>
         </form>
 
-        <div className="auth-divider" role="presentation">
+        <div className="auth-divider login-divider" role="presentation">
           <span>o</span>
         </div>
 
-        <div className="stack-form">
+        <div className="stack-form login-form">
           <button
             type="button"
-            className="secondary-btn"
+            className="secondary-btn action-with-icon login-google-btn"
             onClick={() => void handleGoogleLogin()}
             disabled={isEmailLoading || isGoogleLoading}
           >
-            {isGoogleLoading ? 'Conectando...' : 'Continuar con Google'}
+            <GoogleIcon />
+            <span>{isGoogleLoading ? 'Conectando...' : 'Continuar con Google'}</span>
           </button>
 
-          <p className="inline-note">Ruta destino luego de login: {fromPath}</p>
           {message && <p className="inline-note warning-note">{message}</p>}
         </div>
       </section>

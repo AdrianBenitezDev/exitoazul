@@ -1139,6 +1139,45 @@ code {
   background: linear-gradient(165deg, #ffffff, #f1f6ff);
 }
 
+.login-page {
+  justify-items: center;
+}
+
+.login-hero,
+.login-panel {
+  width: min(92vw, 560px);
+}
+
+.login-hero {
+  text-align: center;
+  justify-items: center;
+}
+
+.login-panel {
+  display: grid;
+  justify-items: center;
+}
+
+.login-form {
+  width: min(100%, 460px);
+  margin: 0 auto;
+}
+
+.login-divider {
+  width: min(100%, 460px);
+  margin: 0.9rem auto;
+}
+
+.login-google-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.login-google-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .stack-form {
   display: grid;
   gap: 0.78rem;
@@ -1248,6 +1287,11 @@ code {
   .site-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .login-hero,
+  .login-panel {
+    width: 100%;
   }
 
   .image-panel-actions {
