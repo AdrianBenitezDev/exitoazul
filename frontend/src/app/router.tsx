@@ -6,6 +6,7 @@ import SharedGalleryPage from '../pages/SharedGalleryPage';
 import RegisterPage from '../pages/RegisterPage';
 import LoginPage from '../pages/LoginPage';
 import PrivacyPolicyPage from '../pages/PrivacyPolicyPage';
+import TermsConditionsPage from '../pages/TermsConditionsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 const router = createBrowserRouter([
@@ -40,6 +41,10 @@ const router = createBrowserRouter([
       {
         path: 'privacy',
         element: <PrivacyPolicyPage />,
+      },
+      {
+        path: 'terms',
+        element: <TermsConditionsPage />,
       },
       {
         path: 's/:token',
