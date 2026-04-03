@@ -127,6 +127,12 @@ code {
   color: var(--blue);
 }
 
+.brand-home-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+}
+
 .brand-icon {
   width: 1.18em;
   height: 1.18em;

@@ -1,25 +1,5 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
-
-type NavIconKey = 'panel' | 'register' | 'login';
-
-const navLinks: Array<{ to: string; label: string; icon: NavIconKey }> = [
-  {
-    to: '/',
-    label: 'Panel',
-    icon: 'panel',
-  },
-  {
-    to: '/register',
-    label: 'Registro',
-    icon: 'register',
-  },
-  {
-    to: '/login',
-    label: 'Login',
-    icon: 'login',
-  },
-];
 
 function BrandStarIcon() {
   return (
@@ -76,31 +56,6 @@ function SessionIcon() {
   );
 }
 
-function HomeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M4.2 10.3 12 4l7.8 6.3V20H4.2z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="M9.4 20v-5.4h5.2V20" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function RegisterIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M3.8 18.6c.6-2.7 2.7-4.2 5.2-4.2s4.6 1.5 5.2 4.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M17.2 8.8h3.8M19.1 6.9v3.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function LoginIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -134,18 +89,6 @@ function DocumentIcon() {
   );
 }
 
-const renderNavIcon = (icon: NavIconKey) => {
-  if (icon === 'panel') {
-    return <HomeIcon />;
-  }
-
-  if (icon === 'register') {
-    return <RegisterIcon />;
-  }
-
-  return <LoginIcon />;
-};
-
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -175,7 +118,7 @@ function AppLayout() {
         <button
           type="button"
           className="secondary-btn action-with-icon auth-identified-btn"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/index.html')}
         >
           <UserIcon />
           <span>{user.displayName ?? user.email ?? 'Usuario'}</span>
@@ -191,26 +134,80 @@ function AppLayout() {
     );
   };
 
+  const renderMainSessionActions = () => {
+    if (loading) {
+      return (
+        <button type="button" className="secondary-btn action-with-icon auth-pending-btn" disabled>
+          <span className="inline-spinner" aria-hidden="true" />
+          <span>Verificando...</span>
+        </button>
+      );
+    }
+
+    if (user) {
+      return (
+        <>
+          <button type="button" className="secondary-btn action-with-icon">
+            <SettingsIcon />
+            <span>Configuracion</span>
+          </button>
+
+          <button
+            type="button"
+            className="secondary-btn action-with-icon"
+            onClick={() => void handleSessionClick()}
+          >
+            <SessionIcon />
+            <span>Cerrar sesion</span>
+          </button>
+
+          <button type="button" className="user-chip" aria-label="Usuario actual">
+            <UserIcon />
+            <span>{user.displayName ?? user.email ?? 'Usuario'}</span>
+          </button>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <button type="button" className="secondary-btn action-with-icon">
+          <SettingsIcon />
+          <span>Configuracion</span>
+        </button>
+
+        <Link className="secondary-btn action-with-icon" to="/login">
+          <LoginIcon />
+          <span>Login</span>
+        </Link>
+      </>
+    );
+  };
+
   return (
     <div className="app-shell">
       <header className="hero-panel unified-banner">
         <div className={isSharedView ? 'hero-top-row shared-hero-row' : 'hero-top-row'}>
           <div className="hero-main">
             {isSharedView ? (
-              <h3 className="brand-title shared-brand-title">
-                <span className="brand-icon" aria-hidden="true">
-                  <BrandStarIcon />
-                </span>
-                <span>Exito Azul</span>
-              </h3>
-            ) : (
-              <>
-                <h1 className="brand-title">
+              <Link className="brand-home-link" to="/index.html">
+                <h3 className="brand-title shared-brand-title">
                   <span className="brand-icon" aria-hidden="true">
                     <BrandStarIcon />
                   </span>
                   <span>Exito Azul</span>
-                </h1>
+                </h3>
+              </Link>
+            ) : (
+              <>
+                <Link className="brand-home-link" to="/index.html">
+                  <h1 className="brand-title">
+                    <span className="brand-icon" aria-hidden="true">
+                      <BrandStarIcon />
+                    </span>
+                    <span>Exito Azul</span>
+                  </h1>
+                </Link>
                 <p className="subtitle">maxima privasidad</p>
               </>
             )}
@@ -222,49 +219,10 @@ function AppLayout() {
             </div>
           ) : (
             <div className="banner-actions inline-actions" aria-label="Acciones de sesion">
-              <button type="button" className="secondary-btn action-with-icon">
-                <SettingsIcon />
-                <span>Configuracion</span>
-              </button>
-
-              <button type="button" className="secondary-btn action-with-icon" onClick={() => void handleSessionClick()}>
-                <SessionIcon />
-                <span>{user ? 'Cerrar sesion' : 'Iniciar sesion'}</span>
-              </button>
-
-              <button type="button" className="user-chip" aria-label="Usuario actual">
-                <UserIcon />
-                <span>{user?.displayName ?? 'Usuario'}</span>
-              </button>
+              {renderMainSessionActions()}
             </div>
           )}
         </div>
-
-        {!isSharedView && (
-          <>
-            <nav className="nav-links" aria-label="Navegacion principal">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-                >
-                  <span className="nav-icon" aria-hidden="true">
-                    {renderNavIcon(link.icon)}
-                  </span>
-                  <span>{link.label}</span>
-                </NavLink>
-              ))}
-            </nav>
-
-            <div className="hero-quick-actions">
-              <Link className="primary-btn action-with-icon" to="/register">
-                <RegisterIcon />
-                <span>Registrar nuevo usuario</span>
-              </Link>
-            </div>
-          </>
-        )}
       </header>
 
       <main className="content">
