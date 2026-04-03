@@ -140,6 +140,7 @@ function DashboardPage() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
+  const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -265,6 +266,23 @@ function DashboardPage() {
     };
   }, [expandedImageId]);
 
+  useEffect(() => {
+    if (!isCreateSectionModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIsCreateSectionModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCreateSectionModalOpen]);
+
   const selectedVisibleImages = useMemo(
     () => visibleImages.filter((image) => selectedImageIds.includes(image.id)),
     [visibleImages, selectedImageIds],
@@ -301,9 +319,7 @@ function DashboardPage() {
       ),
     );
 
-  const handleCreateSection = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-
+  const handleCreateSection = async (): Promise<void> => {
     if (!firestoreDb || !user) {
       setFeedback({
         tone: 'warning',
@@ -325,6 +341,7 @@ function DashboardPage() {
       const sectionId = await createUserSection(firestoreDb, user.uid, trimmedName);
       setSelectedSectionId(sectionId);
       setNewSectionName('');
+      setIsCreateSectionModalOpen(false);
       setFeedback({
         tone: 'success',
         message: `Seccion creada: ${trimmedName}.`,
@@ -335,6 +352,11 @@ function DashboardPage() {
         message: 'No se pudo crear la seccion.',
       });
     }
+  };
+
+  const handleCreateSectionSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    void handleCreateSection();
   };
 
   const handleUploadImage = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -727,47 +749,97 @@ function DashboardPage() {
           <p>Crea nuevas secciones y comparte su galeria con un link temporal.</p>
         </div>
 
-        <form className="section-form" onSubmit={(event) => void handleCreateSection(event)}>
-          <input
-            type="text"
-            value={newSectionName}
-            onChange={(event) => {
-              setNewSectionName(event.target.value);
-            }}
-            placeholder="Ejemplo: Catalogo Mayo"
-            aria-label="Nombre de nueva seccion"
-            disabled={isLoadingData}
-          />
-          <button type="submit" className="primary-btn" disabled={isLoadingData}>
-            Crear seccion
-          </button>
-        </form>
+        <div className="category-strip-shell">
+          <span className="category-strip-label">categorias</span>
+          <div className="category-strip-scroll" role="list" aria-label="Categorias disponibles">
+            {sections.map((section) => (
+              <article key={section.id} className="category-card" role="listitem">
+                <button
+                  type="button"
+                  className={
+                    selectedSectionId === section.id
+                      ? 'category-select-btn active'
+                      : 'category-select-btn'
+                  }
+                  onClick={() => setSelectedSectionId(section.id)}
+                >
+                  {section.name}
+                </button>
+                <span className="category-count">{countImagesBySection(section.id)} imagenes</span>
+                <button
+                  type="button"
+                  className="secondary-btn category-share-btn"
+                  onClick={() => {
+                    void handleSectionShare(section.id);
+                  }}
+                  disabled={isSharing}
+                >
+                  Compartir
+                </button>
+              </article>
+            ))}
 
-        <div className="section-grid">
-          {sections.map((section) => (
-            <article key={section.id} className="section-card">
-              <button
-                type="button"
-                className={selectedSectionId === section.id ? 'ghost-btn active' : 'ghost-btn'}
-                onClick={() => setSelectedSectionId(section.id)}
-              >
-                {section.name}
-              </button>
-              <p>{countImagesBySection(section.id)} imagenes</p>
-              <button
-                type="button"
-                className="primary-btn"
-                onClick={() => {
-                  void handleSectionShare(section.id);
-                }}
-                disabled={isSharing}
-              >
-                Compartir seccion
-              </button>
-            </article>
-          ))}
+            <button
+              type="button"
+              className="category-add-card"
+              onClick={() => setIsCreateSectionModalOpen(true)}
+              aria-label="Agregar nueva categoria"
+            >
+              <span className="category-add-plus">+</span>
+              <span>Agregar</span>
+            </button>
+          </div>
         </div>
       </section>
+
+      {isCreateSectionModalOpen && (
+        <div
+          className="category-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Crear nueva categoria"
+          onClick={() => {
+            setIsCreateSectionModalOpen(false);
+          }}
+        >
+          <div
+            className="category-modal-card"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <button
+              type="button"
+              className="category-modal-close"
+              aria-label="Cerrar modal de categoria"
+              onClick={() => {
+                setIsCreateSectionModalOpen(false);
+              }}
+            >
+              x
+            </button>
+
+            <h3>Nueva categoria</h3>
+
+            <form className="category-modal-form" onSubmit={handleCreateSectionSubmit}>
+              <input
+                type="text"
+                value={newSectionName}
+                onChange={(event) => {
+                  setNewSectionName(event.target.value);
+                }}
+                placeholder="Ejemplo: Favoritas"
+                aria-label="Nombre de categoria"
+                disabled={isLoadingData}
+                autoFocus
+              />
+              <button type="submit" className="primary-btn" disabled={isLoadingData}>
+                Agregar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <section className="panel">
         <div className="panel-head with-actions">

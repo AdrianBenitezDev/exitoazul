@@ -1,0 +1,12 @@
+Objetivos solicitados para categorias/secciones en pagina principal:
+
+1. Los cards de secciones no deben ocupar todo el ancho.
+2. Reemplazar la grilla actual por un contenedor horizontal con overflow en eje X.
+3. El contenedor de categorias debe tener fondo gris.
+4. Agregar un span visible con texto: "categorias".
+5. Incluir un card especial con signo "+" grande para indicar alta de nueva seccion.
+6. Al hacer click en el card "+", abrir un modal/overlay para crear categoria:
+- Debe incluir input para nombre de categoria.
+- Debe incluir boton para agregar.
+- Debe tener boton "X" en esquina superior derecha para cerrar.
+- Debe cerrarse tambien si se hace click fuera del modal (sobre el overlay).
