@@ -265,6 +265,30 @@ function SharedGalleryPage() {
     };
   }, [expandedImageId, canGoToPrevImage, canGoToNextImage, moveExpandedImage]);
 
+  useEffect(() => {
+    if (expandedImageIndex < 0) {
+      return;
+    }
+
+    const neighborImages: SharedImageView[] = [];
+    const prevImage = galleryImages[expandedImageIndex - 1];
+    const nextImage = galleryImages[expandedImageIndex + 1];
+
+    if (prevImage) {
+      neighborImages.push(prevImage);
+    }
+
+    if (nextImage) {
+      neighborImages.push(nextImage);
+    }
+
+    neighborImages.forEach((image) => {
+      const preload = new Image();
+      preload.src = image.previewUrl;
+      preload.decoding = 'async';
+    });
+  }, [expandedImageIndex, galleryImages]);
+
   const toggleFavorite = async (image: SharedImageView): Promise<void> => {
     if (!user) {
       setShowAuthPrompt(true);
@@ -339,33 +363,39 @@ function SharedGalleryPage() {
     }
   };
 
-  const renderExpandedActions = (image: SharedImageView) => {
+  const renderOverlayActions = (image: SharedImageView) => {
     const favorite = isImageFavorite(image.id);
     const isDownloading = downloadingImageId === image.id;
 
     return (
-      <div className="shared-preview-actions">
+      <div className="image-preview-actions">
         <button
           type="button"
-          className="primary-btn action-with-icon"
+          className="icon-btn download-action"
+          aria-label="Descargar imagen"
           onClick={() => {
             void handleDownload(image);
           }}
           disabled={isDownloading}
         >
           <DownloadIcon />
-          <span>{isDownloading ? 'Descargando...' : 'Descargar'}</span>
+          <span className="icon-btn-tooltip">
+            {isDownloading ? 'descargando...' : 'descargar'}
+          </span>
         </button>
 
         <button
           type="button"
-          className={favorite ? 'secondary-btn action-with-icon favorite-chip active' : 'secondary-btn action-with-icon favorite-chip'}
+          className={favorite ? 'icon-btn favorite-active' : 'icon-btn'}
+          aria-label={favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
           onClick={() => {
             void toggleFavorite(image);
           }}
         >
           <StarIcon filled={favorite} />
-          <span>{favorite ? 'En favoritos' : 'Guardar favorito'}</span>
+          <span className="icon-btn-tooltip">
+            {favorite ? 'quitar favorito' : 'agregar favorito'}
+          </span>
         </button>
       </div>
     );
@@ -392,7 +422,7 @@ function SharedGalleryPage() {
           ) : (
             <>
               <div className="gallery-grid shared-gallery-grid">
-                {galleryImages.map((image) => {
+                {galleryImages.map((image, index) => {
                   const favorite = isImageFavorite(image.id);
                   const isDownloading = downloadingImageId === image.id;
 
@@ -414,7 +444,8 @@ function SharedGalleryPage() {
                           <img
                             src={image.previewUrl}
                             alt={image.fileName}
-                            loading="lazy"
+                            loading={index < 8 ? 'eager' : 'lazy'}
+                            fetchPriority={index < 3 ? 'high' : 'auto'}
                             decoding="async"
                             className={
                               loadedCardImageIds[image.id]
@@ -517,7 +548,7 @@ function SharedGalleryPage() {
           }}
         >
           <div
-            className="image-preview-dialog shared-preview-dialog"
+            className="image-preview-dialog"
             onClick={(event) => {
               event.stopPropagation();
             }}
@@ -553,9 +584,9 @@ function SharedGalleryPage() {
               >
                 <ChevronIcon direction="right" />
               </button>
+              {renderOverlayActions(expandedImage)}
             </div>
 
-            {renderExpandedActions(expandedImage)}
             <p className="image-preview-position">
               {expandedImageIndex + 1} / {galleryImages.length}
             </p>

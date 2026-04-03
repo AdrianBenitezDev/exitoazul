@@ -94,7 +94,7 @@ const canShareFiles = (files: File[]): boolean => {
 };
 
 const shareLinkByClient = async (url: string): Promise<void> => {
-  const text = `Galeria privada de Exito Azul: ${url}`;
+  const text = 'Galeria privada de Exito Azul';
 
   if (canUseNavigatorShare()) {
     await navigator.share({

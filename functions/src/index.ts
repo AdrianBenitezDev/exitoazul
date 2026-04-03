@@ -72,6 +72,9 @@ const DEFAULT_TTL_HOURS = 24;
 const MIN_TTL_HOURS = 1;
 const MAX_TTL_HOURS = 24 * 7;
 const MAX_SHARED_IMAGES = 120;
+const SHARE_TOKEN_LENGTH = 10;
+const SHARE_TOKEN_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 const trimFinalSlash = (value: string): string => value.replace(/\/+$/, "");
 
@@ -125,8 +128,20 @@ const parseToken = (value: string | undefined): string => {
     throw new HttpsError("invalid-argument", "token es obligatorio.");
   }
 
-  if (!/^[A-Za-z0-9_-]{16,128}$/.test(token)) {
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(token)) {
     throw new HttpsError("invalid-argument", "Formato de token invalido.");
+  }
+
+  return token;
+};
+
+const generateShareToken = (length: number = SHARE_TOKEN_LENGTH): string => {
+  const bytes = randomBytes(length);
+  let token = "";
+
+  for (let index = 0; index < length; index += 1) {
+    const alphabetIndex = bytes[index] % SHARE_TOKEN_ALPHABET.length;
+    token += SHARE_TOKEN_ALPHABET[alphabetIndex];
   }
 
   return token;
@@ -500,7 +515,7 @@ export const createShareLink = onCall(async (request) => {
 
   await ensureTargetOwnership(uid, targetType, targetId);
 
-  const token = randomBytes(24).toString("hex");
+  const token = generateShareToken();
   const expiresAtDate = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
   const expiresAt = Timestamp.fromDate(expiresAtDate);
   const shareBaseUrl = getShareBaseUrl(data.baseUrl);
