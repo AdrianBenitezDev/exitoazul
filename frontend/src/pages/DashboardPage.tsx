@@ -111,6 +111,21 @@ function DownloadIcon() {
   );
 }
 
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="m12 16.5V6.5M8.8 9.8 12 6.5l3.2 3.3M5 18.5h14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DashboardPage() {
   const { user } = useAuth();
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -856,23 +871,32 @@ function DashboardPage() {
             >
               Compartir seleccion por archivo
             </button>
-
-            <label
-              className={
-                isUploading ? 'secondary-btn file-upload-btn disabled' : 'secondary-btn file-upload-btn'
-              }
-            >
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  void handleUploadImage(event);
-                }}
-                disabled={isUploading || !selectedSection}
-              />
-              {isUploading ? 'Subiendo...' : 'Subir imagen'}
-            </label>
           </div>
+        </div>
+
+        <div className="upload-full-width-zone">
+          <label
+            className={
+              isUploading || !selectedSection
+                ? 'upload-circle-trigger disabled'
+                : 'upload-circle-trigger'
+            }
+          >
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                void handleUploadImage(event);
+              }}
+              disabled={isUploading || !selectedSection}
+            />
+            <span className="upload-circle-icon" aria-hidden="true">
+              <UploadIcon />
+            </span>
+            <span className="upload-hover-text">
+              {isUploading ? 'subiendo imagen' : 'subir imagen'}
+            </span>
+          </label>
         </div>
 
         {isLoadingData ? (
