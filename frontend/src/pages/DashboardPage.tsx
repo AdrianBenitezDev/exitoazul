@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useAuth } from '../auth/useAuth';
 import type { GalleryImage, GallerySection } from '../features/gallery/gallery.types';
 import {
@@ -126,6 +126,25 @@ function UploadIcon() {
   );
 }
 
+function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d={
+          direction === 'left'
+            ? 'm14.8 5.5-6.1 6.5 6.1 6.5'
+            : 'm9.2 5.5 6.1 6.5-6.1 6.5'
+        }
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function DashboardPage() {
   const { user } = useAuth();
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -140,8 +159,10 @@ function DashboardPage() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
+  const [expandedImageSource, setExpandedImageSource] = useState<'section' | 'selected'>('section');
   const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] = useState<boolean>(false);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
+  const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -238,6 +259,17 @@ function DashboardPage() {
   useEffect(() => {
     const visibleIds = new Set(visibleImages.map((image) => image.id));
     setSelectedImageIds((current) => current.filter((imageId) => visibleIds.has(imageId)));
+    setLoadedCardImageIds((current) => {
+      const nextLoaded: Record<string, boolean> = {};
+
+      visibleImages.forEach((image) => {
+        if (current[image.id]) {
+          nextLoaded[image.id] = true;
+        }
+      });
+
+      return nextLoaded;
+    });
   }, [visibleImages]);
 
   useEffect(() => {
@@ -289,8 +321,72 @@ function DashboardPage() {
     [visibleImages, selectedImageIds],
   );
 
+  const expandedImagePool = useMemo(() => {
+    if (
+      expandedImageSource === 'selected' &&
+      selectedVisibleImages.length > 0 &&
+      expandedImageId &&
+      selectedVisibleImages.some((image) => image.id === expandedImageId)
+    ) {
+      return selectedVisibleImages;
+    }
+
+    return visibleImages;
+  }, [expandedImageSource, selectedVisibleImages, visibleImages, expandedImageId]);
+
+  const expandedImageInPool = useMemo(
+    () => expandedImagePool.find((image) => image.id === expandedImageId) ?? null,
+    [expandedImagePool, expandedImageId],
+  );
+
+  const expandedImageIndex = useMemo(
+    () => expandedImagePool.findIndex((image) => image.id === expandedImageId),
+    [expandedImagePool, expandedImageId],
+  );
+
+  const canGoToPrevImage = expandedImageIndex > 0;
+  const canGoToNextImage =
+    expandedImageIndex >= 0 && expandedImageIndex < expandedImagePool.length - 1;
+
   const countImagesBySection = (sectionId: string): number =>
     images.filter((image) => image.sectionId === sectionId).length;
+
+  const markCardImageAsLoaded = (imageId: string): void => {
+    setLoadedCardImageIds((current) => {
+      if (current[imageId]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [imageId]: true,
+      };
+    });
+  };
+
+  const openImagePreview = (imageId: string): void => {
+    const isInSelection = selectedVisibleImages.some((image) => image.id === imageId);
+    setExpandedImageSource(isInSelection ? 'selected' : 'section');
+    setExpandedImageId(imageId);
+  };
+
+  const moveExpandedImage = useCallback(
+    (direction: 'prev' | 'next'): void => {
+      if (expandedImageIndex < 0) {
+        return;
+      }
+
+      const nextIndex = direction === 'prev' ? expandedImageIndex - 1 : expandedImageIndex + 1;
+      const targetImage = expandedImagePool[nextIndex];
+
+      if (!targetImage) {
+        return;
+      }
+
+      setExpandedImageId(targetImage.id);
+    },
+    [expandedImageIndex, expandedImagePool],
+  );
 
   const handleToggleImageSelection = (imageId: string): void => {
     setSelectedImageIds((current) =>
@@ -308,6 +404,30 @@ function DashboardPage() {
 
     setSelectedImageIds(visibleImages.map((image) => image.id));
   };
+
+  useEffect(() => {
+    if (!expandedImageId) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft' && canGoToPrevImage) {
+        event.preventDefault();
+        moveExpandedImage('prev');
+        return;
+      }
+
+      if (event.key === 'ArrowRight' && canGoToNextImage) {
+        event.preventDefault();
+        moveExpandedImage('next');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedImageId, canGoToPrevImage, canGoToNextImage, moveExpandedImage]);
 
   const createLinksForImages = async (selectedImages: GalleryImage[]): Promise<ShareLinkResult[]> =>
     Promise.all(
@@ -917,13 +1037,30 @@ function DashboardPage() {
                   <div className="image-stage">
                     <button
                       type="button"
-                      className="image-preview-trigger"
+                      className={
+                        loadedCardImageIds[image.id]
+                          ? 'image-preview-trigger image-ready'
+                          : 'image-preview-trigger image-loading'
+                      }
                       onClick={() => {
-                        setExpandedImageId(image.id);
+                        openImagePreview(image.id);
                       }}
                       aria-label={`Ampliar ${image.fileName}`}
                     >
-                      <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
+                      <img
+                        src={image.previewUrl}
+                        alt={image.fileName}
+                        loading="lazy"
+                        decoding="async"
+                        className={
+                          loadedCardImageIds[image.id]
+                            ? 'progressive-image is-ready'
+                            : 'progressive-image'
+                        }
+                        onLoad={() => {
+                          markCardImageAsLoaded(image.id);
+                        }}
+                      />
                     </button>
 
                     <label className="image-select-chip">
@@ -956,12 +1093,12 @@ function DashboardPage() {
         )}
       </section>
 
-      {expandedImage && (
+      {expandedImageInPool && (
         <div
           className="image-preview-overlay"
           role="dialog"
           aria-modal="true"
-          aria-label={`Vista ampliada de ${expandedImage.fileName}`}
+          aria-label={`Vista ampliada de ${expandedImageInPool.fileName}`}
           onClick={() => {
             setExpandedImageId(null);
           }}
@@ -984,16 +1121,37 @@ function DashboardPage() {
             </button>
 
             <div className="image-preview-stage">
-              <img src={expandedImage.previewUrl} alt={expandedImage.fileName} />
-              {renderImageActionButtons(expandedImage, 'image-preview-actions')}
+              <img src={expandedImageInPool.previewUrl} alt={expandedImageInPool.fileName} />
+              <button
+                type="button"
+                className="overlay-nav-btn prev"
+                onClick={() => moveExpandedImage('prev')}
+                disabled={!canGoToPrevImage}
+                aria-label="Imagen anterior"
+              >
+                <ChevronIcon direction="left" />
+              </button>
+              <button
+                type="button"
+                className="overlay-nav-btn next"
+                onClick={() => moveExpandedImage('next')}
+                disabled={!canGoToNextImage}
+                aria-label="Imagen siguiente"
+              >
+                <ChevronIcon direction="right" />
+              </button>
+              {renderImageActionButtons(expandedImageInPool, 'image-preview-actions')}
             </div>
 
             <div className="image-preview-meta">
-              <h3>{expandedImage.fileName}</h3>
+              <h3>{expandedImageInPool.fileName}</h3>
               <p>
-                {expandedImage.isFavorite
+                {expandedImageInPool.isFavorite
                   ? 'Favorita activa'
                   : 'Sin marcar como favorita'}
+              </p>
+              <p className="image-preview-position">
+                {expandedImageIndex + 1} / {expandedImagePool.length}
               </p>
             </div>
           </div>

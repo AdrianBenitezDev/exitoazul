@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import {
@@ -53,6 +53,25 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
+function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d={
+          direction === 'left'
+            ? 'm14.8 5.5-6.1 6.5 6.1 6.5'
+            : 'm9.2 5.5 6.1 6.5-6.1 6.5'
+        }
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function SharedGalleryPage() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -65,6 +84,7 @@ function SharedGalleryPage() {
   const [notice, setNotice] = useState<NoticeState>(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState<boolean>(false);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
+  const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
   const hasToken = Boolean(token?.trim());
   const safeToken = token?.trim() ?? '';
   const redirectTarget = safeToken ? `/s/${safeToken}` : '/';
@@ -123,6 +143,22 @@ function SharedGalleryPage() {
     };
   }, [expandedImageId]);
 
+  const galleryImages = useMemo(() => gallery?.images ?? [], [gallery]);
+
+  useEffect(() => {
+    setLoadedCardImageIds((current) => {
+      const nextLoaded: Record<string, boolean> = {};
+
+      galleryImages.forEach((image) => {
+        if (current[image.id]) {
+          nextLoaded[image.id] = true;
+        }
+      });
+
+      return nextLoaded;
+    });
+  }, [galleryImages]);
+
   useEffect(() => {
     if (!firestoreDb || !user) {
       setFavoriteKeys([]);
@@ -155,15 +191,79 @@ function SharedGalleryPage() {
   }, [user]);
 
   const expandedImage = useMemo(
-    () => gallery?.images.find((image) => image.id === expandedImageId) ?? null,
-    [gallery, expandedImageId],
+    () => galleryImages.find((image) => image.id === expandedImageId) ?? null,
+    [galleryImages, expandedImageId],
   );
+
+  const expandedImageIndex = useMemo(
+    () => galleryImages.findIndex((image) => image.id === expandedImageId),
+    [galleryImages, expandedImageId],
+  );
+
+  const canGoToPrevImage = expandedImageIndex > 0;
+  const canGoToNextImage =
+    expandedImageIndex >= 0 && expandedImageIndex < galleryImages.length - 1;
 
   const resolvedErrorMessage = hasToken ? errorMessage : 'Token compartido invalido.';
   const resolvedIsLoading = hasToken ? isLoading : false;
 
   const isImageFavorite = (imageId: string): boolean =>
     favoriteKeys.includes(buildSharedFavoriteId(safeToken, imageId));
+
+  const markCardImageAsLoaded = (imageId: string): void => {
+    setLoadedCardImageIds((current) => {
+      if (current[imageId]) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [imageId]: true,
+      };
+    });
+  };
+
+  const moveExpandedImage = useCallback(
+    (direction: 'prev' | 'next'): void => {
+      if (expandedImageIndex < 0) {
+        return;
+      }
+
+      const nextIndex = direction === 'prev' ? expandedImageIndex - 1 : expandedImageIndex + 1;
+      const targetImage = galleryImages[nextIndex];
+
+      if (!targetImage) {
+        return;
+      }
+
+      setExpandedImageId(targetImage.id);
+    },
+    [expandedImageIndex, galleryImages],
+  );
+
+  useEffect(() => {
+    if (!expandedImageId) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft' && canGoToPrevImage) {
+        event.preventDefault();
+        moveExpandedImage('prev');
+        return;
+      }
+
+      if (event.key === 'ArrowRight' && canGoToNextImage) {
+        event.preventDefault();
+        moveExpandedImage('next');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedImageId, canGoToPrevImage, canGoToNextImage, moveExpandedImage]);
 
   const toggleFavorite = async (image: SharedImageView): Promise<void> => {
     if (!user) {
@@ -292,7 +392,7 @@ function SharedGalleryPage() {
           ) : (
             <>
               <div className="gallery-grid shared-gallery-grid">
-                {(gallery?.images ?? []).map((image) => {
+                {galleryImages.map((image) => {
                   const favorite = isImageFavorite(image.id);
                   const isDownloading = downloadingImageId === image.id;
 
@@ -301,13 +401,30 @@ function SharedGalleryPage() {
                       <div className="image-stage">
                         <button
                           type="button"
-                          className="image-preview-trigger"
+                          className={
+                            loadedCardImageIds[image.id]
+                              ? 'image-preview-trigger image-ready'
+                              : 'image-preview-trigger image-loading'
+                          }
                           onClick={() => {
                             setExpandedImageId(image.id);
                           }}
                           aria-label={`Ampliar ${image.fileName}`}
                         >
-                          <img src={image.previewUrl} alt={image.fileName} loading="lazy" />
+                          <img
+                            src={image.previewUrl}
+                            alt={image.fileName}
+                            loading="lazy"
+                            decoding="async"
+                            className={
+                              loadedCardImageIds[image.id]
+                                ? 'progressive-image is-ready'
+                                : 'progressive-image'
+                            }
+                            onLoad={() => {
+                              markCardImageAsLoaded(image.id);
+                            }}
+                          />
                         </button>
                       </div>
 
@@ -418,9 +535,30 @@ function SharedGalleryPage() {
 
             <div className="image-preview-stage">
               <img src={expandedImage.previewUrl} alt={expandedImage.fileName} />
+              <button
+                type="button"
+                className="overlay-nav-btn prev"
+                onClick={() => moveExpandedImage('prev')}
+                disabled={!canGoToPrevImage}
+                aria-label="Imagen anterior"
+              >
+                <ChevronIcon direction="left" />
+              </button>
+              <button
+                type="button"
+                className="overlay-nav-btn next"
+                onClick={() => moveExpandedImage('next')}
+                disabled={!canGoToNextImage}
+                aria-label="Imagen siguiente"
+              >
+                <ChevronIcon direction="right" />
+              </button>
             </div>
 
             {renderExpandedActions(expandedImage)}
+            <p className="image-preview-position">
+              {expandedImageIndex + 1} / {galleryImages.length}
+            </p>
 
             {!user && (
               <p className="inline-note">
