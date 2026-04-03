@@ -10,6 +10,7 @@ import {
   subscribeUserSections,
   uploadImageForSection,
 } from '../features/gallery/gallery.service';
+import { buildAutoImageName, getNextImageSequence } from '../features/gallery/naming';
 import {
   createTemporaryShareLink,
   getShareErrorMessage,
@@ -25,6 +26,12 @@ type FeedbackState = {
   tone: 'info' | 'success' | 'warning';
   message: string;
 } | null;
+
+type PendingUploadCard = {
+  id: string;
+  sectionId: string;
+  fileName: string;
+};
 
 const formatDateTime = (date: Date): string =>
   new Intl.DateTimeFormat('es-AR', {
@@ -157,10 +164,13 @@ function DashboardPage() {
   const [isRevokingLink, setIsRevokingLink] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [pendingUploadCard, setPendingUploadCard] = useState<PendingUploadCard | null>(null);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
   const [expandedImageSource, setExpandedImageSource] = useState<'section' | 'selected'>('section');
   const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] = useState<boolean>(false);
+  const [isCreatingSection, setIsCreatingSection] = useState<boolean>(false);
+  const [pendingSectionName, setPendingSectionName] = useState<string | null>(null);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
 
@@ -347,6 +357,9 @@ function DashboardPage() {
   const canGoToPrevImage = expandedImageIndex > 0;
   const canGoToNextImage =
     expandedImageIndex >= 0 && expandedImageIndex < expandedImagePool.length - 1;
+  const showPendingUploadCard = Boolean(
+    pendingUploadCard && pendingUploadCard.sectionId === selectedSectionId,
+  );
 
   const countImagesBySection = (sectionId: string): number =>
     images.filter((image) => image.sectionId === sectionId).length;
@@ -458,11 +471,14 @@ function DashboardPage() {
       return;
     }
 
+    setIsCreatingSection(true);
+    setPendingSectionName(trimmedName);
+    setIsCreateSectionModalOpen(false);
+
     try {
       const sectionId = await createUserSection(firestoreDb, user.uid, trimmedName);
       setSelectedSectionId(sectionId);
       setNewSectionName('');
-      setIsCreateSectionModalOpen(false);
       setFeedback({
         tone: 'success',
         message: `Seccion creada: ${trimmedName}.`,
@@ -472,6 +488,9 @@ function DashboardPage() {
         tone: 'warning',
         message: 'No se pudo crear la seccion.',
       });
+    } finally {
+      setIsCreatingSection(false);
+      setPendingSectionName(null);
     }
   };
 
@@ -498,9 +517,16 @@ function DashboardPage() {
 
     setIsUploading(true);
 
-    try {
-      const existingSectionImages = images.filter((image) => image.sectionId === selectedSection.id);
+    const existingSectionImages = images.filter((image) => image.sectionId === selectedSection.id);
+    const nextSequence = getNextImageSequence(existingSectionImages, selectedSection.name);
+    const predictedName = buildAutoImageName(selectedSection.name, nextSequence);
+    setPendingUploadCard({
+      id: `pending-upload-${Date.now()}`,
+      sectionId: selectedSection.id,
+      fileName: predictedName,
+    });
 
+    try {
       const result = await uploadImageForSection({
         db: firestoreDb,
         storage: firebaseStorage,
@@ -522,6 +548,7 @@ function DashboardPage() {
       });
     } finally {
       setIsUploading(false);
+      setPendingUploadCard(null);
     }
   };
 
@@ -868,10 +895,24 @@ function DashboardPage() {
               className="category-add-card"
               onClick={() => setIsCreateSectionModalOpen(true)}
               aria-label="Agregar nueva categoria"
+              disabled={isCreatingSection}
             >
               <span className="category-add-plus">+</span>
               <span>Agregar</span>
             </button>
+
+            {pendingSectionName && (
+              <article className="category-card category-card-pending" role="listitem">
+                <div className="pending-card-head">
+                  <span className="inline-spinner" aria-hidden="true" />
+                  <span>Creando...</span>
+                </div>
+                <button type="button" className="category-select-btn" disabled>
+                  {pendingSectionName}
+                </button>
+                <span className="category-count">Guardando categoria</span>
+              </article>
+            )}
 
             {sections.map((section) => (
               <article key={section.id} className="category-card" role="listitem">
@@ -941,11 +982,15 @@ function DashboardPage() {
                 }}
                 placeholder="Ejemplo: Favoritas"
                 aria-label="Nombre de categoria"
-                disabled={isLoadingData}
+                disabled={isLoadingData || isCreatingSection}
                 autoFocus
               />
-              <button type="submit" className="primary-btn" disabled={isLoadingData}>
-                Agregar
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={isLoadingData || isCreatingSection}
+              >
+                {isCreatingSection ? 'Creando...' : 'Agregar'}
               </button>
             </form>
           </div>
@@ -1032,6 +1077,22 @@ function DashboardPage() {
             )}
 
             <div className="gallery-grid">
+              {showPendingUploadCard && pendingUploadCard && (
+                <article key={pendingUploadCard.id} className="image-card image-card-pending">
+                  <div className="image-stage pending-image-stage">
+                    <div className="pending-image-loader">
+                      <span className="inline-spinner" aria-hidden="true" />
+                      <span>Subiendo imagen...</span>
+                    </div>
+                  </div>
+
+                  <div className="image-meta">
+                    <h3>{pendingUploadCard.fileName}</h3>
+                    <p>Procesando y guardando en la seccion</p>
+                  </div>
+                </article>
+              )}
+
               {visibleImages.map((image) => (
                 <article key={image.id} className="image-card">
                   <div className="image-stage">
@@ -1084,7 +1145,7 @@ function DashboardPage() {
               ))}
             </div>
 
-            {visibleImages.length === 0 && (
+            {visibleImages.length === 0 && !showPendingUploadCard && (
               <p className="empty-state">
                 Esta seccion no tiene imagenes. Usa "Subir imagen" para guardar la primera.
               </p>

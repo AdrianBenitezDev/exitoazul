@@ -517,9 +517,32 @@ code {
   font-weight: 800;
 }
 
+.category-add-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .category-add-plus {
   font-size: 2.35rem;
   line-height: 1;
+}
+
+.category-card-pending {
+  border-style: dashed;
+  background: #f8fbff;
+}
+
+.pending-card-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--blue-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.category-card-pending .category-select-btn {
+  cursor: progress;
 }
 
 .category-modal-overlay {
@@ -671,6 +694,34 @@ code {
   gap: 0.45rem;
   padding-bottom: 0.6rem;
   max-width: 220px;
+}
+
+.image-card-pending {
+  border-style: dashed;
+  background: #f8fbff;
+}
+
+.pending-image-stage {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  background: linear-gradient(160deg, #e9f0ff, #f6f9ff);
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.pending-image-loader {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  color: var(--blue-dark);
+  font-weight: 800;
+  font-size: 0.83rem;
+}
+
+.pending-image-loader .inline-spinner {
+  width: 18px;
+  height: 18px;
 }
 
 .image-stage {

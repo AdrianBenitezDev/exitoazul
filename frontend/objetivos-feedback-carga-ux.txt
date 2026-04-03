@@ -1,0 +1,20 @@
+OBJETIVOS UX - FEEDBACK DE CARGA (2026-04-03)
+
+1) Subida de imagen con feedback inmediato
+- Al iniciar la subida, renderizar una card temporal en la grilla de imagenes.
+- La card temporal debe mostrar spinner + texto de estado (ej: "Subiendo imagen...").
+- Al finalizar (exito o error), quitar la card temporal.
+- Mantener el comportamiento actual de subida y el naming automatico.
+
+2) Creacion de coleccion con feedback inmediato
+- Al iniciar la creacion de una nueva categoria, renderizar una card temporal en el listado de categorias.
+- La card temporal debe mostrar spinner + texto de estado (ej: "Creando...").
+- Al finalizar (exito o error), quitar la card temporal.
+
+3) Estados y bloqueos de UI
+- Deshabilitar acciones de envio del formulario mientras se crea la categoria.
+- Mantener mensajes de feedback existentes.
+
+4) Validacion y entrega
+- Ejecutar lint y build del frontend.
+- Push a GitHub y deploy en Firebase.
