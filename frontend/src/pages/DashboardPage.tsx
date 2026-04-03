@@ -15,7 +15,6 @@ import {
   getShareErrorMessage,
   revokeTemporaryShareLink,
   shareFilesDirect,
-  shareImageWithPolicy,
   shareTemporaryLink,
   shareTemporaryLinks,
 } from '../features/share/share.service';
@@ -83,35 +82,6 @@ function TrashIcon() {
   );
 }
 
-function ShareFileIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M8 7.2V5.5c0-.8.7-1.5 1.5-1.5h5c.8 0 1.5.7 1.5 1.5v1.7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6 9.3h12v9.2c0 .9-.7 1.6-1.6 1.6H7.6c-.9 0-1.6-.7-1.6-1.6V9.3z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m12 10.7 3 3M15 13.7h-2.2V16M12 10.7l-3 3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function ShareLinkIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -121,6 +91,21 @@ function ShareLinkIcon() {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 4.2v9.6M8.7 10.8 12 14l3.3-3.2M5 17.2h14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -141,6 +126,7 @@ function DashboardPage() {
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
   const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] = useState<boolean>(false);
+  const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -451,58 +437,97 @@ function DashboardPage() {
     }
   };
 
+  const handleDownloadImage = async (image: GalleryImage): Promise<void> => {
+    setDownloadingImageId(image.id);
+
+    try {
+      const suggestedName = image.fileName.includes('.')
+        ? image.fileName
+        : `${image.fileName}.jpg`;
+      const link = document.createElement('a');
+      link.href = image.previewUrl;
+      link.download = suggestedName;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setFeedback({
+        tone: 'info',
+        message: `Descarga iniciada para ${suggestedName}.`,
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo descargar la imagen en este dispositivo.',
+      });
+    } finally {
+      setDownloadingImageId(null);
+    }
+  };
+
   const renderImageActionButtons = (
     image: GalleryImage,
     className: string = 'image-float-actions',
-  ) => (
-    <div className={className}>
-      <button
-        type="button"
-        className="icon-btn share-file"
-        aria-label="Compartir imagen como archivo"
-        onClick={() => {
-          void handleImageShareFile(image);
-        }}
-        disabled={isSharing}
-      >
-        <ShareFileIcon />
-      </button>
+  ) => {
+    const isDownloading = downloadingImageId === image.id;
+    const favoriteTooltip = image.isFavorite ? 'quitar de favoritos' : 'agregar a favoritos';
 
-      <button
-        type="button"
-        className="icon-btn share-link"
-        aria-label="Compartir imagen por link"
-        onClick={() => {
-          void handleImageShareLink(image);
-        }}
-        disabled={isSharing}
-      >
-        <ShareLinkIcon />
-      </button>
+    return (
+      <div className={className}>
+        <button
+          type="button"
+          className="icon-btn download-action"
+          aria-label="Descargar imagen"
+          onClick={() => {
+            void handleDownloadImage(image);
+          }}
+          disabled={isDownloading}
+        >
+          <DownloadIcon />
+          <span className="icon-btn-tooltip">descargar</span>
+        </button>
 
-      <button
-        type="button"
-        className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
-        aria-label={image.isFavorite ? 'Quitar imagen de favoritas' : 'Agregar imagen a favoritas'}
-        onClick={() => {
-          void handleToggleFavorite(image);
-        }}
-      >
-        <StarIcon filled={image.isFavorite} />
-      </button>
+        <button
+          type="button"
+          className="icon-btn share-link"
+          aria-label="Compartir imagen por link"
+          onClick={() => {
+            void handleImageShareLink(image);
+          }}
+          disabled={isSharing}
+        >
+          <ShareLinkIcon />
+          <span className="icon-btn-tooltip">compartir</span>
+        </button>
 
-      <button
-        type="button"
-        className="icon-btn danger"
-        aria-label="Eliminar imagen"
-        onClick={() => {
-          void handleDeleteImage(image);
-        }}
-      >
-        <TrashIcon />
-      </button>
-    </div>
-  );
+        <button
+          type="button"
+          className={image.isFavorite ? 'icon-btn favorite-active' : 'icon-btn'}
+          aria-label={image.isFavorite ? 'Quitar imagen de favoritas' : 'Agregar imagen a favoritas'}
+          onClick={() => {
+            void handleToggleFavorite(image);
+          }}
+        >
+          <StarIcon filled={image.isFavorite} />
+          <span className="icon-btn-tooltip">{favoriteTooltip}</span>
+        </button>
+
+        <button
+          type="button"
+          className="icon-btn danger"
+          aria-label="Eliminar imagen"
+          onClick={() => {
+            void handleDeleteImage(image);
+          }}
+        >
+          <TrashIcon />
+          <span className="icon-btn-tooltip">eliminar</span>
+        </button>
+      </div>
+    );
+  };
 
   const handleSectionShare = async (sectionId: string): Promise<void> => {
     setIsSharing(true);
@@ -563,55 +588,6 @@ function DashboardPage() {
         setFeedback({
           tone: 'warning',
           message: getShareErrorMessage(error, 'No se pudo compartir el link de esta imagen.'),
-        });
-      }
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
-  const handleImageShareFile = async (image: GalleryImage): Promise<void> => {
-    setIsSharing(true);
-
-    try {
-      const link = await createTemporaryShareLink({
-        targetType: 'image',
-        targetId: image.id,
-        ttlHours: 12,
-      });
-
-      setLastLink(link);
-      const sourceFile = await buildSourceFileFromUrl(image.previewUrl, image.fileName);
-
-      const outcome = await shareImageWithPolicy({
-        imageTitle: image.fileName,
-        temporaryLink: link,
-        sourceFile,
-      });
-
-      if (outcome.mode === 'direct-image') {
-        setFeedback({
-          tone: 'success',
-          message: 'La imagen se envio de forma directa a la app seleccionada.',
-        });
-      } else {
-        setFeedback({
-          tone: 'info',
-          message: `No hubo compatibilidad para archivo directo. Se envio link temporal (vence ${formatDateTime(
-            link.expiresAt,
-          )}).`,
-        });
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setFeedback({
-          tone: 'info',
-          message: 'El envio se cancelo por el usuario.',
-        });
-      } else {
-        setFeedback({
-          tone: 'warning',
-          message: getShareErrorMessage(error, 'No fue posible compartir esta imagen ahora.'),
         });
       }
     } finally {
@@ -752,6 +728,16 @@ function DashboardPage() {
         <div className="category-strip-shell">
           <span className="category-strip-label">categorias</span>
           <div className="category-strip-scroll" role="list" aria-label="Categorias disponibles">
+            <button
+              type="button"
+              className="category-add-card"
+              onClick={() => setIsCreateSectionModalOpen(true)}
+              aria-label="Agregar nueva categoria"
+            >
+              <span className="category-add-plus">+</span>
+              <span>Agregar</span>
+            </button>
+
             {sections.map((section) => (
               <article key={section.id} className="category-card" role="listitem">
                 <button
@@ -778,16 +764,6 @@ function DashboardPage() {
                 </button>
               </article>
             ))}
-
-            <button
-              type="button"
-              className="category-add-card"
-              onClick={() => setIsCreateSectionModalOpen(true)}
-              aria-label="Agregar nueva categoria"
-            >
-              <span className="category-add-plus">+</span>
-              <span>Agregar</span>
-            </button>
           </div>
         </div>
       </section>
@@ -844,8 +820,7 @@ function DashboardPage() {
       <section className="panel">
         <div className="panel-head with-actions">
           <div>
-            <h2>Imagenes de la seccion</h2>
-            <p>Gestion de imagenes con acciones flotantes y compartido individual o masivo.</p>
+            <h3>{selectedSection?.name ?? 'favoritos'}</h3>
           </div>
 
           <div className="image-panel-actions">

@@ -1,0 +1,21 @@
+Objetivos solicitados:
+
+1. Card de alta de categoria:
+- El boton/card con clase `category-add-card` debe renderizarse siempre primero (a la izquierda).
+- Luego deben renderizarse las demas categorias.
+
+2. Encabezado del bloque de imagenes:
+- Quitar titulo fijo "Imagenes de la seccion".
+- En su lugar renderizar el nombre de la seccion seleccionada (por defecto: "favoritos").
+- Eliminar el texto: "Gestion de imagenes con acciones flotantes y compartido individual o masivo."
+
+3. Acciones sobre imagenes:
+- Mostrar tooltip/label al hover de cada boton con texto de accion:
+  - "descargar"
+  - "eliminar"
+  - "agregar a favoritos"
+  - "compartir"
+
+4. Reemplazo de accion:
+- Cambiar el boton `icon-btn share-file` y su logica.
+- Debe pasar a ser boton de descarga de imagen.

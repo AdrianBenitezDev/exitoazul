@@ -656,6 +656,8 @@ code {
   justify-content: center;
   align-items: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  position: relative;
+  overflow: visible;
 }
 
 .icon-btn svg {
@@ -672,12 +674,35 @@ code {
   cursor: not-allowed;
 }
 
+.icon-btn-tooltip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%) translateX(4px);
+  padding: 0.22rem 0.45rem;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.icon-btn:hover .icon-btn-tooltip,
+.icon-btn:focus-visible .icon-btn-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
 .icon-btn.favorite-active {
   color: #f0a400;
   border-color: rgba(240, 164, 0, 0.45);
 }
 
-.icon-btn.share-file {
+.icon-btn.download-action {
   color: #0d6e4e;
   border-color: rgba(13, 110, 78, 0.35);
 }
