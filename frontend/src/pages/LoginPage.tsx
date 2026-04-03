@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
@@ -8,7 +8,7 @@ type LocationState = {
 };
 
 function LoginPage() {
-  const { signInWithGoogle, signInWithEmail } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -23,6 +23,16 @@ function LoginPage() {
   const fromPath = (fromState || fromQuery || '/').startsWith('/')
     ? fromState || fromQuery || '/'
     : '/';
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/index.html', { replace: true });
+    }
+  }, [loading, user, navigate]);
+
+  if (!loading && user) {
+    return null;
+  }
 
   const handleEmailLogin = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
