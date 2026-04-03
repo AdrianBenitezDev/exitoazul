@@ -1,5 +1,6 @@
 import {randomBytes} from "node:crypto";
 import {initializeApp} from "firebase-admin/app";
+import {getStorage} from "firebase-admin/storage";
 import {
   FieldValue,
   Timestamp,
@@ -44,11 +45,13 @@ type RevokeShareLinkRequest = {
 
 type ResolveSharedGalleryRequest = {
   token?: string;
+  baseUrl?: string;
 };
 
 type ImageDoc = {
   fileName?: string;
   sectionId?: string;
+  storagePath?: string;
   downloadUrl?: string;
   createdAt?: Timestamp;
 };
@@ -60,7 +63,7 @@ type SectionDoc = {
 type SharedImageItem = {
   id: string;
   fileName: string;
-  previewUrl: string;
+  storagePath: string;
   sectionId: string;
   createdAtMillis: number;
 };
@@ -129,6 +132,20 @@ const parseToken = (value: string | undefined): string => {
   return token;
 };
 
+const parseImageId = (value: string | undefined): string => {
+  const imageId = value?.trim() ?? "";
+
+  if (!imageId) {
+    throw new HttpsError("invalid-argument", "imageId es obligatorio.");
+  }
+
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(imageId)) {
+    throw new HttpsError("invalid-argument", "Formato de imageId invalido.");
+  }
+
+  return imageId;
+};
+
 const getDefaultShareBaseUrl = (): string => {
   const projectId = process.env.GCLOUD_PROJECT ?? "";
 
@@ -160,6 +177,98 @@ const getSectionRef = (uid: string, sectionId: string) =>
 const getImageRef = (uid: string, imageId: string) =>
   db.collection("users").doc(uid).collection("images").doc(imageId);
 
+const getShareRef = (token: string) => db.collection("publicShares").doc(token);
+
+const readQueryValue = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value) && typeof value[0] === "string") {
+    return value[0];
+  }
+
+  return undefined;
+};
+
+const extractStoragePathFromDownloadUrl = (
+  value: string | undefined,
+): string => {
+  const source = value?.trim() ?? "";
+
+  if (!source) {
+    return "";
+  }
+
+  const matched = source.match(/\/o\/([^?]+)/);
+  if (!matched || !matched[1]) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(matched[1]);
+  } catch {
+    return "";
+  }
+};
+
+const resolveImageStoragePath = (data: ImageDoc): string =>
+  data.storagePath?.trim() ||
+  extractStoragePathFromDownloadUrl(data.downloadUrl);
+
+const buildSharedImageProxyUrl = (
+  shareBaseUrl: string,
+  token: string,
+  imageId: string,
+): string =>
+  `${trimFinalSlash(shareBaseUrl)}/api/shared-image` +
+  `?token=${encodeURIComponent(token)}` +
+  `&imageId=${encodeURIComponent(imageId)}`;
+
+const readActiveShare = async (token: string): Promise<{
+  shareData: ShareLinkDoc;
+  expiresAtDate: Date;
+}> => {
+  const shareSnapshot = await getShareRef(token).get();
+
+  if (!shareSnapshot.exists) {
+    throw new HttpsError("not-found", "Link temporal inexistente.");
+  }
+
+  const shareData = shareSnapshot.data() as ShareLinkDoc;
+  const expiresAtDate = shareData.expiresAt instanceof Timestamp ?
+    shareData.expiresAt.toDate() :
+    new Date(0);
+
+  if (shareData.isRevoked) {
+    throw new HttpsError("failed-precondition", "Este link fue revocado.");
+  }
+
+  if (expiresAtDate.getTime() <= Date.now()) {
+    throw new HttpsError("failed-precondition", "Este link temporal expiro.");
+  }
+
+  return {
+    shareData,
+    expiresAtDate,
+  };
+};
+
+const getHttpStatusFromHttpsError = (error: HttpsError): number => {
+  switch (error.code) {
+  case "invalid-argument":
+    return 400;
+  case "permission-denied":
+    return 403;
+  case "not-found":
+    return 404;
+  case "failed-precondition":
+    return 410;
+  default:
+    return 500;
+  }
+};
+
 const ensureTargetOwnership = async (
   ownerId: string,
   targetType: ShareTargetType,
@@ -183,9 +292,9 @@ const toSharedImageItem = (
   snapshot: QueryDocumentSnapshot<DocumentData>,
 ): SharedImageItem | null => {
   const data = snapshot.data() as ImageDoc;
-  const previewUrl = data.downloadUrl?.trim() ?? "";
+  const storagePath = resolveImageStoragePath(data);
 
-  if (!previewUrl) {
+  if (!storagePath) {
     return null;
   }
 
@@ -196,16 +305,20 @@ const toSharedImageItem = (
   return {
     id: snapshot.id,
     fileName: data.fileName?.trim() || snapshot.id,
-    previewUrl,
+    storagePath,
     sectionId: data.sectionId ?? "",
     createdAtMillis,
   };
 };
 
-const toPublicImage = (image: SharedImageItem) => ({
+const toPublicImage = (
+  image: SharedImageItem,
+  shareBaseUrl: string,
+  token: string,
+) => ({
   id: image.id,
   fileName: image.fileName,
-  previewUrl: image.previewUrl,
+  previewUrl: buildSharedImageProxyUrl(shareBaseUrl, token, image.id),
   sectionId: image.sectionId,
 });
 
@@ -229,8 +342,10 @@ const readSectionName = async (
 const resolveImageTarget = async (params: {
   ownerId: string;
   imageId: string;
+  shareToken: string;
+  shareBaseUrl: string;
 }) => {
-  const {ownerId, imageId} = params;
+  const {ownerId, imageId, shareToken, shareBaseUrl} = params;
   const imageSnapshot = await getImageRef(ownerId, imageId).get();
 
   if (!imageSnapshot.exists) {
@@ -238,33 +353,39 @@ const resolveImageTarget = async (params: {
   }
 
   const imageData = imageSnapshot.data() as ImageDoc;
-  const previewUrl = imageData.downloadUrl?.trim() ?? "";
+  const storagePath = resolveImageStoragePath(imageData);
 
-  if (!previewUrl) {
+  if (!storagePath) {
     throw new HttpsError(
       "failed-precondition",
-      "La imagen no tiene URL publica disponible.",
+      "La imagen no tiene una ruta valida en almacenamiento.",
     );
   }
 
   const sectionName = await readSectionName(ownerId, imageData.sectionId ?? "");
+  const sharedImage: SharedImageItem = {
+    id: imageSnapshot.id,
+    fileName: imageData.fileName?.trim() || imageSnapshot.id,
+    storagePath,
+    sectionId: imageData.sectionId ?? "",
+    createdAtMillis: imageData.createdAt instanceof Timestamp ?
+      imageData.createdAt.toMillis() :
+      0,
+  };
 
   return {
     sectionName,
-    images: [{
-      id: imageSnapshot.id,
-      fileName: imageData.fileName?.trim() || imageSnapshot.id,
-      previewUrl,
-      sectionId: imageData.sectionId ?? "",
-    }],
+    images: [toPublicImage(sharedImage, shareBaseUrl, shareToken)],
   };
 };
 
 const resolveSectionTarget = async (params: {
   ownerId: string;
   sectionId: string;
+  shareToken: string;
+  shareBaseUrl: string;
 }) => {
-  const {ownerId, sectionId} = params;
+  const {ownerId, sectionId, shareToken, shareBaseUrl} = params;
 
   const sectionSnapshot = await getSectionRef(ownerId, sectionId).get();
   if (!sectionSnapshot.exists) {
@@ -285,7 +406,7 @@ const resolveSectionTarget = async (params: {
     .map((docSnapshot) => toSharedImageItem(docSnapshot))
     .filter((image): image is SharedImageItem => image !== null)
     .sort((a, b) => b.createdAtMillis - a.createdAtMillis)
-    .map((image) => toPublicImage(image));
+    .map((image) => toPublicImage(image, shareBaseUrl, shareToken));
 
   return {
     sectionName,
@@ -296,6 +417,78 @@ const resolveSectionTarget = async (params: {
 export const health = onRequest((request, response) => {
   logger.info("Health check", {method: request.method, path: request.path});
   response.status(200).send("Exito Azul Functions OK");
+});
+
+export const serveSharedImage = onRequest(async (request, response) => {
+  if (request.method !== "GET") {
+    response.set("Allow", "GET");
+    response.status(405).send("Method not allowed");
+    return;
+  }
+
+  try {
+    const token = parseToken(readQueryValue(request.query.token));
+    const imageId = parseImageId(readQueryValue(request.query.imageId));
+    const {shareData} = await readActiveShare(token);
+
+    if (shareData.targetType === "image" && shareData.targetId !== imageId) {
+      throw new HttpsError(
+        "permission-denied",
+        "La imagen solicitada no corresponde al token.",
+      );
+    }
+
+    const imageSnapshot = await getImageRef(shareData.ownerId, imageId).get();
+    if (!imageSnapshot.exists) {
+      throw new HttpsError("not-found", "La imagen solicitada no existe.");
+    }
+
+    const imageData = imageSnapshot.data() as ImageDoc;
+    if (
+      shareData.targetType === "section" &&
+      imageData.sectionId !== shareData.targetId
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "La imagen solicitada no pertenece a la seccion compartida.",
+      );
+    }
+
+    const storagePath = resolveImageStoragePath(imageData);
+    if (!storagePath) {
+      throw new HttpsError(
+        "failed-precondition",
+        "La imagen no tiene ruta valida en almacenamiento.",
+      );
+    }
+
+    const file = getStorage().bucket().file(storagePath);
+    const [exists] = await file.exists();
+    if (!exists) {
+      throw new HttpsError("not-found", "El archivo de imagen no existe.");
+    }
+
+    const [buffer] = await file.download();
+    const [metadata] = await file.getMetadata();
+    const contentType = metadata.contentType || "application/octet-stream";
+    const fileName = (imageData.fileName?.trim() || imageSnapshot.id)
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    response.set("Cache-Control", "private, no-store, max-age=0");
+    response.set("Pragma", "no-cache");
+    response.set("X-Content-Type-Options", "nosniff");
+    response.set("Content-Disposition", `inline; filename="${fileName}"`);
+    response.set("Content-Type", contentType);
+    response.status(200).send(buffer);
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      response.status(getHttpStatusFromHttpsError(error)).send(error.message);
+      return;
+    }
+
+    logger.error("Shared image delivery failed", error);
+    response.status(500).send("No fue posible resolver la imagen compartida.");
+  }
 });
 
 export const createShareLink = onCall(async (request) => {
@@ -380,31 +573,21 @@ export const revokeShareLink = onCall(async (request) => {
 export const resolveSharedGallery = onCall(async (request) => {
   const data = (request.data ?? {}) as ResolveSharedGalleryRequest;
   const token = parseToken(data.token);
-  const shareSnapshot = await db.collection("publicShares").doc(token).get();
-
-  if (!shareSnapshot.exists) {
-    throw new HttpsError("not-found", "Link temporal inexistente.");
-  }
-
-  const shareData = shareSnapshot.data() as ShareLinkDoc;
-  const expiresAtDate = shareData.expiresAt.toDate();
-
-  if (shareData.isRevoked) {
-    throw new HttpsError("failed-precondition", "Este link fue revocado.");
-  }
-
-  if (expiresAtDate.getTime() <= Date.now()) {
-    throw new HttpsError("failed-precondition", "Este link temporal expiro.");
-  }
+  const shareBaseUrl = getShareBaseUrl(data.baseUrl);
+  const {shareData, expiresAtDate} = await readActiveShare(token);
 
   const target = shareData.targetType === "image" ?
     await resolveImageTarget({
       ownerId: shareData.ownerId,
       imageId: shareData.targetId,
+      shareToken: token,
+      shareBaseUrl,
     }) :
     await resolveSectionTarget({
       ownerId: shareData.ownerId,
       sectionId: shareData.targetId,
+      shareToken: token,
+      shareBaseUrl,
     });
 
   logger.info("Share link resolved", {

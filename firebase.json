@@ -22,6 +22,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/shared-image",
+        "function": "serveSharedImage"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

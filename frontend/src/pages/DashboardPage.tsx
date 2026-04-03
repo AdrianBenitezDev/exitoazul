@@ -658,9 +658,6 @@ function DashboardPage() {
     setIsSharing(true);
 
     try {
-      const links = await createLinksForImages(selectedVisibleImages);
-      setLastLink(links[links.length - 1] ?? null);
-
       const filesWithUndefined = await Promise.all(
         selectedVisibleImages.map((image) => buildSourceFileFromUrl(image.previewUrl, image.fileName)),
       );
@@ -673,11 +670,14 @@ function DashboardPage() {
       });
 
       if (directShared) {
+        setLastLink(null);
         setFeedback({
           tone: 'success',
           message: `Se compartieron ${files.length} imagen(es) como archivo adjunto.`,
         });
       } else {
+        const links = await createLinksForImages(selectedVisibleImages);
+        setLastLink(links[links.length - 1] ?? null);
         await shareTemporaryLinks(links);
         setFeedback({
           tone: 'info',

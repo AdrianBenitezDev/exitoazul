@@ -5,7 +5,13 @@ import {
   getShareErrorMessage,
   resolveSharedGalleryByToken,
 } from '../features/share/share.service';
+import {
+  buildSharedFavoriteId,
+  setSharedFavorite,
+  subscribeSharedFavorites,
+} from '../features/share/sharedFavorites.service';
 import type { SharedGalleryResult, SharedImageView } from '../features/share/share.types';
+import { firestoreDb } from '../lib/firebase';
 
 type NoticeState = {
   tone: 'info' | 'success' | 'warning';
@@ -17,27 +23,6 @@ const formatDateTime = (date: Date): string =>
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);
-
-const getFavoritesStorageKey = (uid: string): string => `exitoazul_shared_favorites_${uid}`;
-
-const buildFavoriteKey = (token: string, imageId: string): string => `${token}:${imageId}`;
-
-const safeParseFavorites = (value: string | null): string[] => {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter((item): item is string => typeof item === 'string');
-  } catch {
-    return [];
-  }
-};
 
 function DownloadIcon() {
   return (
@@ -139,22 +124,29 @@ function SharedGalleryPage() {
   }, [expandedImageId]);
 
   useEffect(() => {
-    if (!user) {
+    if (!firestoreDb || !user) {
       setFavoriteKeys([]);
       return;
     }
 
-    const stored = localStorage.getItem(getFavoritesStorageKey(user.uid));
-    setFavoriteKeys(safeParseFavorites(stored));
+    const unsubscribe = subscribeSharedFavorites(
+      firestoreDb,
+      user.uid,
+      (nextFavoriteIds) => {
+        setFavoriteKeys(nextFavoriteIds);
+      },
+      () => {
+        setNotice({
+          tone: 'warning',
+          message: 'No se pudieron cargar los favoritos de tu cuenta.',
+        });
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
   }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    localStorage.setItem(getFavoritesStorageKey(user.uid), JSON.stringify(favoriteKeys));
-  }, [user, favoriteKeys]);
 
   useEffect(() => {
     if (user) {
@@ -171,9 +163,9 @@ function SharedGalleryPage() {
   const resolvedIsLoading = hasToken ? isLoading : false;
 
   const isImageFavorite = (imageId: string): boolean =>
-    favoriteKeys.includes(buildFavoriteKey(safeToken, imageId));
+    favoriteKeys.includes(buildSharedFavoriteId(safeToken, imageId));
 
-  const toggleFavorite = (image: SharedImageView): void => {
+  const toggleFavorite = async (image: SharedImageView): Promise<void> => {
     if (!user) {
       setShowAuthPrompt(true);
       setNotice({
@@ -183,20 +175,38 @@ function SharedGalleryPage() {
       return;
     }
 
-    const favoriteKey = buildFavoriteKey(safeToken, image.id);
+    if (!firestoreDb) {
+      setNotice({
+        tone: 'warning',
+        message: 'No se pudo sincronizar favoritos en este entorno.',
+      });
+      return;
+    }
 
-    setFavoriteKeys((current) =>
-      current.includes(favoriteKey)
-        ? current.filter((key) => key !== favoriteKey)
-        : [...current, favoriteKey],
-    );
+    const favoriteId = buildSharedFavoriteId(safeToken, image.id);
+    const nextFavoriteState = !favoriteKeys.includes(favoriteId);
 
-    setNotice({
-      tone: 'success',
-      message: isImageFavorite(image.id)
-        ? 'Imagen removida de favoritos.'
-        : 'Imagen guardada en favoritos.',
-    });
+    try {
+      await setSharedFavorite({
+        db: firestoreDb,
+        uid: user.uid,
+        token: safeToken,
+        image,
+        isFavorite: nextFavoriteState,
+      });
+
+      setNotice({
+        tone: 'success',
+        message: nextFavoriteState
+          ? 'Imagen guardada en favoritos.'
+          : 'Imagen removida de favoritos.',
+      });
+    } catch {
+      setNotice({
+        tone: 'warning',
+        message: 'No se pudo actualizar favoritos en este momento.',
+      });
+    }
   };
 
   const handleDownload = async (image: SharedImageView): Promise<void> => {
@@ -251,7 +261,7 @@ function SharedGalleryPage() {
           type="button"
           className={favorite ? 'secondary-btn action-with-icon favorite-chip active' : 'secondary-btn action-with-icon favorite-chip'}
           onClick={() => {
-            toggleFavorite(image);
+            void toggleFavorite(image);
           }}
         >
           <StarIcon filled={favorite} />
@@ -323,7 +333,7 @@ function SharedGalleryPage() {
                           type="button"
                           className={favorite ? 'secondary-btn action-with-icon favorite-chip active' : 'secondary-btn action-with-icon favorite-chip'}
                           onClick={() => {
-                            toggleFavorite(image);
+                            void toggleFavorite(image);
                           }}
                         >
                           <StarIcon filled={favorite} />

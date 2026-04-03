@@ -186,13 +186,14 @@ export const revokeTemporaryShareLink = async (token: string): Promise<boolean> 
 };
 
 export const resolveSharedGalleryByToken = async (token: string): Promise<SharedGalleryResult> => {
-  const callable = httpsCallable<{ token: string }, ResolveSharedGalleryResponse>(
+  const callable = httpsCallable<{ token: string; baseUrl: string }, ResolveSharedGalleryResponse>(
     requireFunctions(),
     'resolveSharedGallery',
   );
 
   const response = await callable({
     token,
+    baseUrl: getShareBaseUrl(),
   });
 
   return {

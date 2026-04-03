@@ -10,8 +10,8 @@ function PrivacyPolicyPage() {
         </p>
         <ul>
           <li>Solo el propietario autenticado puede administrar su contenido.</li>
-          <li>No se ofrece descarga desde la interfaz web.</li>
-          <li>Los links compartidos deben tener expiracion y opcion de revocacion.</li>
+          <li>Los links compartidos tienen expiracion y opcion de revocacion.</li>
+          <li>La vista compartida no requiere login para visualizar el contenido autorizado.</li>
         </ul>
       </section>
 
@@ -19,8 +19,9 @@ function PrivacyPolicyPage() {
         <p className="eyebrow">Politica de seguridad</p>
         <h2>Reglas de comparticion y proteccion</h2>
         <ul>
-          <li>La web no ofrece descarga de imagenes.</li>
+          <li>La descarga y el compartido de archivos se habilitan segun compatibilidad del dispositivo.</li>
           <li>Si no hay envio directo, el fallback siempre es link temporal.</li>
+          <li>Las imagenes compartidas se sirven por endpoint controlado con validacion de token activo.</li>
           <li>Cada imagen recibe nombre automatico: seccion_numero.</li>
         </ul>
       </section>

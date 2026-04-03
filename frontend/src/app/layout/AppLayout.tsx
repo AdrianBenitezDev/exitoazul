@@ -236,10 +236,10 @@ function AppLayout() {
             <ShieldIcon />
             <span>Politica de privacidad</span>
           </Link>
-          <a className="text-link action-with-icon" href="/register.html">
+          <Link className="text-link action-with-icon" to="/register">
             <DocumentIcon />
-            <span>Registro HTML</span>
-          </a>
+            <span>Registro</span>
+          </Link>
         </div>
       </footer>
     </div>
