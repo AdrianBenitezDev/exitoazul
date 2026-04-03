@@ -27,21 +27,6 @@ function UserIcon() {
   );
 }
 
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M9.8 4.2h4.4l.6 2.1a6.6 6.6 0 0 1 1.6.9l2.1-.7 2.2 3.8-1.5 1.6c.1.3.1.7.1 1s0 .7-.1 1l1.5 1.6-2.2 3.8-2.1-.7a6.6 6.6 0 0 1-1.6.9l-.6 2.1H9.8l-.6-2.1a6.6 6.6 0 0 1-1.6-.9l-2.1.7-2.2-3.8 1.5-1.6a6.4 6.4 0 0 1 0-2l-1.5-1.6 2.2-3.8 2.1.7a6.6 6.6 0 0 1 1.6-.9l.6-2.1z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
 function SessionIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -147,11 +132,6 @@ function AppLayout() {
     if (user) {
       return (
         <>
-          <button type="button" className="secondary-btn action-with-icon">
-            <SettingsIcon />
-            <span>Configuracion</span>
-          </button>
-
           <button
             type="button"
             className="secondary-btn action-with-icon"
@@ -171,11 +151,6 @@ function AppLayout() {
 
     return (
       <>
-        <button type="button" className="secondary-btn action-with-icon">
-          <SettingsIcon />
-          <span>Configuracion</span>
-        </button>
-
         <Link className="secondary-btn action-with-icon" to="/login">
           <LoginIcon />
           <span>Login</span>
