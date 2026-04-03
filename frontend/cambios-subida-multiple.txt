@@ -1,0 +1,18 @@
+Objetivo solicitado
+- Mantener un solo boton de subida y que el sistema detecte automaticamente si el usuario selecciona 1 o varias imagenes.
+
+Cambios implementados
+- El input de subida en dashboard ahora usa seleccion multiple (`multiple`) sin crear un segundo boton.
+- La funcion de subida procesa todos los archivos seleccionados en una sola accion.
+- Se mantienen los nombres automaticos por seccion con secuencia (seccion_numero) tambien en cargas multiples.
+- Se renderizan cards temporales de carga por cada imagen seleccionada para mostrar progreso visual.
+- El mensaje final de feedback ahora distingue:
+  - Exito simple (1 imagen).
+  - Exito multiple (varias imagenes).
+  - Subida parcial (algunas fallidas).
+  - Error total.
+- Se conserva el mismo flujo UX: el usuario solo hace click en el mismo icono/boton de subir.
+
+Resultado esperado
+- Seleccionar 1 archivo: comportamiento igual que antes, con card de carga y alta final.
+- Seleccionar varios archivos: se crean varias cards de carga y se suben en secuencia dentro del mismo flujo.

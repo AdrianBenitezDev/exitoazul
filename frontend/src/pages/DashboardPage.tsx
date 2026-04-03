@@ -164,7 +164,7 @@ function DashboardPage() {
   const [isRevokingLink, setIsRevokingLink] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [pendingUploadCard, setPendingUploadCard] = useState<PendingUploadCard | null>(null);
+  const [pendingUploadCards, setPendingUploadCards] = useState<PendingUploadCard[]>([]);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
   const [expandedImageSource, setExpandedImageSource] = useState<'section' | 'selected'>('section');
@@ -357,8 +357,8 @@ function DashboardPage() {
   const canGoToPrevImage = expandedImageIndex > 0;
   const canGoToNextImage =
     expandedImageIndex >= 0 && expandedImageIndex < expandedImagePool.length - 1;
-  const showPendingUploadCard = Boolean(
-    pendingUploadCard && pendingUploadCard.sectionId === selectedSectionId,
+  const visiblePendingUploadCards = pendingUploadCards.filter(
+    (pendingCard) => pendingCard.sectionId === selectedSectionId,
   );
 
   const countImagesBySection = (sectionId: string): number =>
@@ -500,10 +500,12 @@ function DashboardPage() {
   };
 
   const handleUploadImage = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = event.target.files?.[0];
+    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
+      file.type.startsWith('image/'),
+    );
     event.target.value = '';
 
-    if (!file) {
+    if (selectedFiles.length === 0) {
       return;
     }
 
@@ -518,37 +520,100 @@ function DashboardPage() {
     setIsUploading(true);
 
     const existingSectionImages = images.filter((image) => image.sectionId === selectedSection.id);
-    const nextSequence = getNextImageSequence(existingSectionImages, selectedSection.name);
-    const predictedName = buildAutoImageName(selectedSection.name, nextSequence);
-    setPendingUploadCard({
-      id: `pending-upload-${Date.now()}`,
-      sectionId: selectedSection.id,
-      fileName: predictedName,
+    const estimatedSectionImages: GalleryImage[] = [...existingSectionImages];
+    const nextPendingCards: PendingUploadCard[] = selectedFiles.map((_, index) => {
+      const nextSequence = getNextImageSequence(estimatedSectionImages, selectedSection.name);
+      const predictedName = buildAutoImageName(selectedSection.name, nextSequence);
+
+      estimatedSectionImages.push({
+        id: `pending-seq-${Date.now()}-${index}`,
+        fileName: predictedName,
+        sectionId: selectedSection.id,
+        previewUrl: '',
+        isFavorite: false,
+      });
+
+      return {
+        id: `pending-upload-${Date.now()}-${index}`,
+        sectionId: selectedSection.id,
+        fileName: predictedName,
+      };
     });
 
-    try {
-      const result = await uploadImageForSection({
-        db: firestoreDb,
-        storage: firebaseStorage,
-        uid: user.uid,
-        sectionId: selectedSection.id,
-        sectionName: selectedSection.name,
-        file,
-        existingSectionImages,
-      });
+    setPendingUploadCards(nextPendingCards);
 
-      setFeedback({
-        tone: 'success',
-        message: `Imagen subida correctamente con nombre automatico: ${result.fileName}.`,
-      });
+    try {
+      let uploadFailures = 0;
+      const uploadedFileNames: string[] = [];
+      let sectionImagesForSequence: GalleryImage[] = [...existingSectionImages];
+
+      for (const [index, file] of selectedFiles.entries()) {
+        const pendingCardId = nextPendingCards[index]?.id;
+
+        try {
+          const result = await uploadImageForSection({
+            db: firestoreDb,
+            storage: firebaseStorage,
+            uid: user.uid,
+            sectionId: selectedSection.id,
+            sectionName: selectedSection.name,
+            file,
+            existingSectionImages: sectionImagesForSequence,
+          });
+
+          uploadedFileNames.push(result.fileName);
+          sectionImagesForSequence = [
+            ...sectionImagesForSequence,
+            {
+              id: result.id,
+              fileName: result.fileName,
+              sectionId: selectedSection.id,
+              previewUrl: '',
+              isFavorite: false,
+            },
+          ];
+        } catch {
+          uploadFailures += 1;
+        } finally {
+          if (pendingCardId) {
+            setPendingUploadCards((current) =>
+              current.filter((pendingItem) => pendingItem.id !== pendingCardId),
+            );
+          }
+        }
+      }
+
+      if (uploadedFileNames.length === selectedFiles.length) {
+        if (uploadedFileNames.length === 1) {
+          setFeedback({
+            tone: 'success',
+            message: `Imagen subida correctamente con nombre automatico: ${uploadedFileNames[0]}.`,
+          });
+        } else {
+          setFeedback({
+            tone: 'success',
+            message: `Se subieron ${uploadedFileNames.length} imagenes correctamente.`,
+          });
+        }
+      } else if (uploadedFileNames.length > 0) {
+        setFeedback({
+          tone: 'warning',
+          message: `Subida parcial: ${uploadedFileNames.length} imagen(es) subidas y ${uploadFailures} con error.`,
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          message: 'No se pudo subir ninguna imagen.',
+        });
+      }
     } catch {
       setFeedback({
         tone: 'warning',
-        message: 'No se pudo subir la imagen.',
+        message: 'No se pudieron procesar las imagenes seleccionadas.',
       });
     } finally {
       setIsUploading(false);
-      setPendingUploadCard(null);
+      setPendingUploadCards([]);
     }
   };
 
@@ -1050,6 +1115,7 @@ function DashboardPage() {
             <input
               type="file"
               accept="image/*"
+              multiple
               onChange={(event) => {
                 void handleUploadImage(event);
               }}
@@ -1059,7 +1125,7 @@ function DashboardPage() {
               <UploadIcon />
             </span>
             <span className="upload-hover-text">
-              {isUploading ? 'subiendo imagen' : 'subir imagen'}
+              {isUploading ? 'subiendo imagenes' : 'subir imagen'}
             </span>
           </label>
         </div>
@@ -1077,7 +1143,7 @@ function DashboardPage() {
             )}
 
             <div className="gallery-grid">
-              {showPendingUploadCard && pendingUploadCard && (
+              {visiblePendingUploadCards.map((pendingUploadCard) => (
                 <article key={pendingUploadCard.id} className="image-card image-card-pending">
                   <div className="image-stage pending-image-stage">
                     <div className="pending-image-loader">
@@ -1091,7 +1157,7 @@ function DashboardPage() {
                     <p>Procesando y guardando en la seccion</p>
                   </div>
                 </article>
-              )}
+              ))}
 
               {visibleImages.map((image) => (
                 <article key={image.id} className="image-card">
@@ -1145,7 +1211,7 @@ function DashboardPage() {
               ))}
             </div>
 
-            {visibleImages.length === 0 && !showPendingUploadCard && (
+            {visibleImages.length === 0 && visiblePendingUploadCards.length === 0 && (
               <p className="empty-state">
                 Esta seccion no tiene imagenes. Usa "Subir imagen" para guardar la primera.
               </p>
