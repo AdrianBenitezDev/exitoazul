@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
 
 function RegisterPage() {
   const { registerWithEmail } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const redirectPath = (searchParams.get('redirect')?.trim() || '/').startsWith('/')
+    ? searchParams.get('redirect')?.trim() || '/'
+    : '/';
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -36,7 +40,7 @@ function RegisterPage() {
         password,
       });
 
-      navigate('/', { replace: true });
+      navigate(redirectPath, { replace: true });
     } catch (error) {
       setMessage(getAuthErrorMessage(error, 'No se pudo crear la cuenta con este email.'));
     } finally {
@@ -112,7 +116,8 @@ function RegisterPage() {
 
           {message && <p className="inline-note warning-note">{message}</p>}
           <p className="inline-note">
-            Si ya tienes cuenta, puedes <Link to="/login">iniciar sesion aqui</Link>.
+            Si ya tienes cuenta, puedes{' '}
+            <Link to={`/login?redirect=${encodeURIComponent(redirectPath)}`}>iniciar sesion aqui</Link>.
           </p>
         </form>
       </section>

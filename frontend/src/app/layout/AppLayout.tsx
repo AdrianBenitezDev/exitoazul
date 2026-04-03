@@ -149,7 +149,7 @@ const renderNavIcon = (icon: NavIconKey) => {
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOutUser } = useAuth();
+  const { user, loading, signOutUser } = useAuth();
   const isSharedView = location.pathname.startsWith('/s/');
 
   const handleSessionClick = async (): Promise<void> => {
@@ -160,61 +160,111 @@ function AppLayout() {
     navigate('/login');
   };
 
+  const renderSharedSessionButton = () => {
+    if (loading) {
+      return (
+        <button type="button" className="secondary-btn action-with-icon auth-pending-btn" disabled>
+          <span className="inline-spinner" aria-hidden="true" />
+          <span>Verificando...</span>
+        </button>
+      );
+    }
+
+    if (user) {
+      return (
+        <button
+          type="button"
+          className="secondary-btn action-with-icon auth-identified-btn"
+          onClick={() => navigate('/')}
+        >
+          <UserIcon />
+          <span>{user.displayName ?? user.email ?? 'Usuario'}</span>
+        </button>
+      );
+    }
+
+    return (
+      <Link className="secondary-btn action-with-icon" to="/login">
+        <LoginIcon />
+        <span>Login</span>
+      </Link>
+    );
+  };
+
   return (
     <div className="app-shell">
       <header className="hero-panel unified-banner">
-        <div className="hero-top-row">
+        <div className={isSharedView ? 'hero-top-row shared-hero-row' : 'hero-top-row'}>
           <div className="hero-main">
-            <h1 className="brand-title">
-              <span className="brand-icon" aria-hidden="true">
-                <BrandStarIcon />
-              </span>
-              <span>Exito Azul</span>
-            </h1>
-            <p className="subtitle">maxima privasidad</p>
+            {isSharedView ? (
+              <h3 className="brand-title shared-brand-title">
+                <span className="brand-icon" aria-hidden="true">
+                  <BrandStarIcon />
+                </span>
+                <span>Exito Azul</span>
+              </h3>
+            ) : (
+              <>
+                <h1 className="brand-title">
+                  <span className="brand-icon" aria-hidden="true">
+                    <BrandStarIcon />
+                  </span>
+                  <span>Exito Azul</span>
+                </h1>
+                <p className="subtitle">maxima privasidad</p>
+              </>
+            )}
           </div>
 
-          <div className="banner-actions inline-actions" aria-label="Acciones de sesion">
-            <button type="button" className="secondary-btn action-with-icon">
-              <SettingsIcon />
-              <span>Configuracion</span>
-            </button>
+          {isSharedView ? (
+            <div className="banner-actions inline-actions shared-banner-actions" aria-label="Acceso de sesion">
+              {renderSharedSessionButton()}
+            </div>
+          ) : (
+            <div className="banner-actions inline-actions" aria-label="Acciones de sesion">
+              <button type="button" className="secondary-btn action-with-icon">
+                <SettingsIcon />
+                <span>Configuracion</span>
+              </button>
 
-            <button type="button" className="secondary-btn action-with-icon" onClick={() => void handleSessionClick()}>
-              <SessionIcon />
-              <span>{user ? 'Cerrar sesion' : 'Iniciar sesion'}</span>
-            </button>
+              <button type="button" className="secondary-btn action-with-icon" onClick={() => void handleSessionClick()}>
+                <SessionIcon />
+                <span>{user ? 'Cerrar sesion' : 'Iniciar sesion'}</span>
+              </button>
 
-            <button type="button" className="user-chip" aria-label="Usuario actual">
-              <UserIcon />
-              <span>{user?.displayName ?? 'Usuario'}</span>
-            </button>
-          </div>
+              <button type="button" className="user-chip" aria-label="Usuario actual">
+                <UserIcon />
+                <span>{user?.displayName ?? 'Usuario'}</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {isSharedView && (
-          <div className="hero-quick-actions">
-            <Link className="primary-btn action-with-icon" to="/register">
-              <RegisterIcon />
-              <span>Registrar nuevo usuario</span>
-            </Link>
-          </div>
-        )}
+        {!isSharedView && (
+          <>
+            <nav className="nav-links" aria-label="Navegacion principal">
+              {navLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    {renderNavIcon(link.icon)}
+                  </span>
+                  <span>{link.label}</span>
+                </NavLink>
+              ))}
+            </nav>
 
-        <nav className="nav-links" aria-label="Navegacion principal">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
-            >
-              <span className="nav-icon" aria-hidden="true">
-                {renderNavIcon(link.icon)}
-              </span>
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
-        </nav>
+            <div className="hero-quick-actions">
+              <Link className="primary-btn action-with-icon" to="/register">
+                <RegisterIcon />
+                <span>Registrar nuevo usuario</span>
+              </Link>
+            </div>
+          </>
+        )}
       </header>
 
       <main className="content">

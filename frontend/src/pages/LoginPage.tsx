@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
 
@@ -11,13 +11,18 @@ function LoginPage() {
   const { signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [isEmailLoading, setIsEmailLoading] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
 
-  const fromPath = (location.state as LocationState | null)?.from ?? '/';
+  const fromState = (location.state as LocationState | null)?.from ?? '';
+  const fromQuery = searchParams.get('redirect')?.trim() ?? '';
+  const fromPath = (fromState || fromQuery || '/').startsWith('/')
+    ? fromState || fromQuery || '/'
+    : '/';
 
   const handleEmailLogin = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();

@@ -1,0 +1,29 @@
+Objetivos solicitados para la vista compartida (/s/:token):
+
+1. Rediseñar el visor compartido con estructura clara:
+- Un div contenedor con titulo h3: "Vista Compartida" en color azul.
+- Debajo, un div que contiene la grilla/listado de imagenes compartidas.
+
+2. Simplificar el banner en rutas compartidas:
+- Mostrar solo el nombre de la web con estrella en un h3.
+- Mostrar solo el boton de login/sesion.
+- Ocultar botones extra (configuracion, cerrar sesion, usuario, navegacion adicional).
+
+3. Verificar sesion del visitante de forma asincronica:
+- No bloquear el render principal.
+- Mientras se valida sesion, mostrar spinner en el boton de login.
+- Si hay sesion autenticada, reemplazar texto por nombre de usuario.
+
+4. Interaccion de imagen en visor compartido:
+- Al hacer click en una imagen, abrir vista ampliada.
+- En la vista ampliada incluir acciones:
+  - Descargar imagen al dispositivo.
+  - Guardar en favoritos.
+
+5. Flujo de favoritos con control de autenticacion:
+- Si el usuario no esta logeado y pulsa favorito, mostrar opciones para login/registro.
+- Si esta autenticado, permitir guardar/quitar favorito.
+
+6. Limpieza de contenido:
+- Eliminar el div que dice:
+  "Si el link vencio o fue revocado, el backend devuelve acceso..."
