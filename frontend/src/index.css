@@ -1153,18 +1153,6 @@ code {
   justify-items: center;
 }
 
-.login-highlights {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 0.42rem;
-  color: var(--ink-soft);
-  font-weight: 600;
-  text-align: left;
-  width: min(100%, 500px);
-}
-
 .login-panel {
   display: grid;
   justify-items: center;

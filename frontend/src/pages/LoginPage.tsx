@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
 
@@ -95,18 +95,7 @@ function LoginPage() {
   return (
     <div className="page-stack login-page">
       <section className="panel share-hero login-hero">
-        <p className="eyebrow">Login</p>
         <h2>Accede para administrar tu galeria privada</h2>
-        <ul className="login-highlights">
-          <li>-Administras tus imagenes y compartelas con quien tu quieras de una forma segura</li>
-          <li>-Exito Azul es una web especializada en el almacenamiento de contenido sencible</li>
-          <li>
-            -lee nuestro{' '}
-            <Link className="text-link" to="/terms#terms-conditions">
-              terminos y condiciones de uso
-            </Link>
-          </li>
-        </ul>
       </section>
 
       <section className="panel login-panel">
