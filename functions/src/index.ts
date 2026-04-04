@@ -22,12 +22,14 @@ setGlobalOptions({maxInstances: 10});
 initializeApp();
 const db = getFirestore();
 
-type ShareTargetType = "image" | "section";
+type ShareTargetType = "image" | "section" | "images";
 
 type ShareLinkDoc = {
   ownerId: string;
+  ownerNickname?: string;
   targetType: ShareTargetType;
   targetId: string;
+  targetIds?: string[];
   expiresAt: Timestamp;
   isRevoked: boolean;
 };
@@ -35,8 +37,18 @@ type ShareLinkDoc = {
 type CreateShareLinkRequest = {
   targetType?: string;
   targetId?: string;
+  targetIds?: unknown;
   ttlHours?: number;
   baseUrl?: string;
+};
+
+type CheckNicknameAvailabilityRequest = {
+  nickname?: string;
+};
+
+type ClaimNicknameRequest = {
+  nickname?: string;
+  fullName?: string;
 };
 
 type RevokeShareLinkRequest = {
@@ -60,6 +72,17 @@ type SectionDoc = {
   name?: string;
 };
 
+type UserProfileDoc = {
+  nickname?: string;
+  nicknameKey?: string;
+  fullName?: string;
+};
+
+type NicknameDoc = {
+  ownerId?: string;
+  nickname?: string;
+};
+
 type SharedImageItem = {
   id: string;
   fileName: string;
@@ -75,6 +98,8 @@ const MAX_SHARED_IMAGES = 120;
 const SHARE_TOKEN_LENGTH = 10;
 const SHARE_TOKEN_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const MAX_NICKNAME_LENGTH = 14;
+const NICKNAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 const trimFinalSlash = (value: string): string => value.replace(/\/+$/, "");
 
@@ -89,7 +114,7 @@ const getUidFromRequest = (request: CallableRequest<unknown>): string => {
 };
 
 const parseTargetType = (value: string | undefined): ShareTargetType => {
-  if (value === "image" || value === "section") {
+  if (value === "image" || value === "section" || value === "images") {
     return value;
   }
 
@@ -104,6 +129,68 @@ const parseTargetId = (value: string | undefined): string => {
   }
 
   return targetId;
+};
+
+const parseImageId = (value: string | undefined): string => {
+  const imageId = value?.trim() ?? "";
+
+  if (!imageId) {
+    throw new HttpsError("invalid-argument", "imageId es obligatorio.");
+  }
+
+  if (!/^[A-Za-z0-9_-]{1,200}$/.test(imageId)) {
+    throw new HttpsError("invalid-argument", "Formato de imageId invalido.");
+  }
+
+  return imageId;
+};
+
+const parseImageIds = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "targetIds es obligatorio para compartir multiples imagenes.",
+    );
+  }
+
+  const parsed = value.map((entry) => {
+    if (typeof entry !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "targetIds contiene elementos con formato invalido.",
+      );
+    }
+
+    return parseImageId(entry);
+  });
+
+  const uniqueImageIds: string[] = [];
+  const seen = new Set<string>();
+
+  parsed.forEach((imageId) => {
+    if (seen.has(imageId)) {
+      return;
+    }
+
+    seen.add(imageId);
+    uniqueImageIds.push(imageId);
+  });
+
+  if (uniqueImageIds.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Debes indicar al menos una imagen para compartir.",
+    );
+  }
+
+  if (uniqueImageIds.length > MAX_SHARED_IMAGES) {
+    throw new HttpsError(
+      "invalid-argument",
+      `No puedes compartir mas de ${MAX_SHARED_IMAGES} imagenes por link.`,
+    );
+  }
+
+  return uniqueImageIds;
 };
 
 const parseTtlHours = (value: number | undefined): number => {
@@ -147,18 +234,38 @@ const generateShareToken = (length: number = SHARE_TOKEN_LENGTH): string => {
   return token;
 };
 
-const parseImageId = (value: string | undefined): string => {
-  const imageId = value?.trim() ?? "";
+const normalizeNickname = (value: string): string => value.trim().toLowerCase();
 
-  if (!imageId) {
-    throw new HttpsError("invalid-argument", "imageId es obligatorio.");
+const parseNickname = (value: string | undefined): string => {
+  const nickname = value?.trim() ?? "";
+
+  if (!nickname) {
+    throw new HttpsError("invalid-argument", "El apodo es obligatorio.");
   }
 
-  if (!/^[A-Za-z0-9_-]{1,200}$/.test(imageId)) {
-    throw new HttpsError("invalid-argument", "Formato de imageId invalido.");
+  if (nickname.length > MAX_NICKNAME_LENGTH) {
+    const maxCharsRule =
+      "El apodo debe tener menos de 15 caracteres " +
+      `(maximo ${MAX_NICKNAME_LENGTH}).`;
+
+    throw new HttpsError(
+      "invalid-argument",
+      maxCharsRule,
+    );
   }
 
-  return imageId;
+  if (!NICKNAME_PATTERN.test(nickname)) {
+    const nicknameRule =
+      "El apodo solo puede contener letras, numeros, " +
+      "punto, guion o guion bajo.";
+
+    throw new HttpsError(
+      "invalid-argument",
+      nicknameRule,
+    );
+  }
+
+  return nickname;
 };
 
 const getDefaultShareBaseUrl = (): string => {
@@ -193,6 +300,33 @@ const getImageRef = (uid: string, imageId: string) =>
   db.collection("users").doc(uid).collection("images").doc(imageId);
 
 const getShareRef = (token: string) => db.collection("publicShares").doc(token);
+const getUserRef = (uid: string) => db.collection("users").doc(uid);
+const getNicknameRef = (nicknameKey: string) =>
+  db.collection("nicknames").doc(nicknameKey);
+
+const getShareImageIds = (shareData: ShareLinkDoc): string[] => {
+  if (shareData.targetType === "images") {
+    const source = Array.isArray(shareData.targetIds) ?
+      shareData.targetIds :
+      [];
+    const normalized: string[] = [];
+    const seen = new Set<string>();
+
+    source.forEach((imageId) => {
+      const safeImageId = imageId?.trim() ?? "";
+      if (!safeImageId || seen.has(safeImageId)) {
+        return;
+      }
+
+      seen.add(safeImageId);
+      normalized.push(safeImageId);
+    });
+
+    return normalized;
+  }
+
+  return shareData.targetId ? [shareData.targetId] : [];
+};
 
 const readQueryValue = (value: unknown): string | undefined => {
   if (typeof value === "string") {
@@ -303,6 +437,35 @@ const ensureTargetOwnership = async (
   }
 };
 
+const ensureImagesOwnership = async (
+  ownerId: string,
+  imageIds: string[],
+): Promise<void> => {
+  const snapshots = await Promise.all(
+    imageIds.map((imageId) => getImageRef(ownerId, imageId).get()),
+  );
+
+  const missingImageId = snapshots.findIndex((snapshot) => !snapshot.exists);
+  if (missingImageId >= 0) {
+    throw new HttpsError(
+      "not-found",
+      `La imagen indicada no existe: ${imageIds[missingImageId]}.`,
+    );
+  }
+};
+
+const readOwnerNickname = async (uid: string): Promise<string> => {
+  const userSnapshot = await getUserRef(uid).get();
+
+  if (!userSnapshot.exists) {
+    return "Usuario";
+  }
+
+  const userData = userSnapshot.data() as UserProfileDoc;
+  const nickname = userData.nickname?.trim() ?? "";
+  return nickname || "Usuario";
+};
+
 const toSharedImageItem = (
   snapshot: QueryDocumentSnapshot<DocumentData>,
 ): SharedImageItem | null => {
@@ -394,6 +557,58 @@ const resolveImageTarget = async (params: {
   };
 };
 
+const resolveImagesTarget = async (params: {
+  ownerId: string;
+  imageIds: string[];
+  shareToken: string;
+  shareBaseUrl: string;
+}) => {
+  const {ownerId, imageIds, shareToken, shareBaseUrl} = params;
+  const snapshots = await Promise.all(
+    imageIds.map((imageId) => getImageRef(ownerId, imageId).get()),
+  );
+
+  const images: SharedImageItem[] = [];
+  let firstSectionId = "";
+
+  snapshots.forEach((snapshot) => {
+    if (!snapshot.exists) {
+      return;
+    }
+
+    const imageData = snapshot.data() as ImageDoc;
+    const storagePath = resolveImageStoragePath(imageData);
+    if (!storagePath) {
+      return;
+    }
+
+    if (!firstSectionId) {
+      firstSectionId = imageData.sectionId ?? "";
+    }
+
+    images.push({
+      id: snapshot.id,
+      fileName: imageData.fileName?.trim() || snapshot.id,
+      storagePath,
+      sectionId: imageData.sectionId ?? "",
+      createdAtMillis: imageData.createdAt instanceof Timestamp ?
+        imageData.createdAt.toMillis() :
+        0,
+    });
+  });
+
+  const sectionName = firstSectionId ?
+    await readSectionName(ownerId, firstSectionId) :
+    "Seleccion compartida";
+
+  return {
+    sectionName,
+    images: images.map(
+      (image) => toPublicImage(image, shareBaseUrl, shareToken),
+    ),
+  };
+};
+
 const resolveSectionTarget = async (params: {
   ownerId: string;
   sectionId: string;
@@ -453,6 +668,17 @@ export const serveSharedImage = onRequest(async (request, response) => {
       );
     }
 
+    if (shareData.targetType === "images") {
+      const allowedImageIds = getShareImageIds(shareData);
+
+      if (!allowedImageIds.includes(imageId)) {
+        throw new HttpsError(
+          "permission-denied",
+          "La imagen solicitada no corresponde al lote compartido.",
+        );
+      }
+    }
+
     const imageSnapshot = await getImageRef(shareData.ownerId, imageId).get();
     if (!imageSnapshot.exists) {
       throw new HttpsError("not-found", "La imagen solicitada no existe.");
@@ -506,14 +732,112 @@ export const serveSharedImage = onRequest(async (request, response) => {
   }
 });
 
+export const checkNicknameAvailability = onCall(async (request) => {
+  const data = (request.data ?? {}) as CheckNicknameAvailabilityRequest;
+  const nickname = parseNickname(data.nickname);
+  const nicknameKey = normalizeNickname(nickname);
+  const nicknameSnapshot = await getNicknameRef(nicknameKey).get();
+
+  return {
+    nickname,
+    nicknameKey,
+    available: !nicknameSnapshot.exists,
+  };
+});
+
+export const claimNickname = onCall(async (request) => {
+  const uid = getUidFromRequest(request);
+  const data = (request.data ?? {}) as ClaimNicknameRequest;
+  const nickname = parseNickname(data.nickname);
+  const nicknameKey = normalizeNickname(nickname);
+  const fullName = data.fullName?.trim() ?? "";
+  const userRef = getUserRef(uid);
+  const nicknameRef = getNicknameRef(nicknameKey);
+
+  await db.runTransaction(async (transaction) => {
+    const nicknameSnapshot = await transaction.get(nicknameRef);
+
+    if (nicknameSnapshot.exists) {
+      const nicknameData = nicknameSnapshot.data() as NicknameDoc;
+      if (nicknameData.ownerId !== uid) {
+        throw new HttpsError("already-exists", "El apodo ya esta en uso.");
+      }
+    }
+
+    const userSnapshot = await transaction.get(userRef);
+    const userData = userSnapshot.data() as UserProfileDoc | undefined;
+    const previousNicknameKey = userData?.nicknameKey?.trim().toLowerCase() ??
+      "";
+    const removePreviousNickname =
+      previousNicknameKey && previousNicknameKey !== nicknameKey;
+
+    if (removePreviousNickname) {
+      const previousNicknameRef = getNicknameRef(previousNicknameKey);
+      const previousNicknameSnapshot = await transaction.get(
+        previousNicknameRef,
+      );
+
+      if (previousNicknameSnapshot.exists) {
+        const previousNicknameData =
+          previousNicknameSnapshot.data() as NicknameDoc;
+        if (previousNicknameData.ownerId === uid) {
+          transaction.delete(previousNicknameRef);
+        }
+      }
+    }
+
+    const nicknamePayload: Record<string, unknown> = {
+      ownerId: uid,
+      nickname,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (!nicknameSnapshot.exists) {
+      nicknamePayload.createdAt = FieldValue.serverTimestamp();
+    }
+
+    transaction.set(nicknameRef, nicknamePayload, {merge: true});
+
+    const userPayload: Record<string, unknown> = {
+      nickname,
+      nicknameKey,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (!userSnapshot.exists) {
+      userPayload.createdAt = FieldValue.serverTimestamp();
+    }
+
+    if (fullName) {
+      userPayload.fullName = fullName;
+    }
+
+    transaction.set(userRef, userPayload, {merge: true});
+  });
+
+  return {
+    nickname,
+    nicknameKey,
+  };
+});
+
 export const createShareLink = onCall(async (request) => {
   const uid = getUidFromRequest(request);
   const data = (request.data ?? {}) as CreateShareLinkRequest;
   const targetType = parseTargetType(data.targetType);
-  const targetId = parseTargetId(data.targetId);
   const ttlHours = parseTtlHours(data.ttlHours);
+  const ownerNickname = await readOwnerNickname(uid);
+  let targetId = "";
+  let targetIds: string[] | undefined;
 
-  await ensureTargetOwnership(uid, targetType, targetId);
+  if (targetType === "images") {
+    targetIds = parseImageIds(data.targetIds);
+    targetId = targetIds[0];
+    await ensureImagesOwnership(uid, targetIds);
+  } else {
+    targetId = parseTargetId(data.targetId);
+    await ensureTargetOwnership(uid, targetType, targetId);
+  }
 
   const token = generateShareToken();
   const expiresAtDate = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
@@ -523,8 +847,10 @@ export const createShareLink = onCall(async (request) => {
 
   const shareDoc: ShareLinkDoc = {
     ownerId: uid,
+    ownerNickname,
     targetType,
     targetId,
+    targetIds,
     expiresAt,
     isRevoked: false,
   };
@@ -537,8 +863,10 @@ export const createShareLink = onCall(async (request) => {
 
   logger.info("Share link created", {
     ownerId: uid,
+    ownerNickname,
     targetType,
     targetId,
+    targetIdsCount: targetIds?.length ?? 0,
     token,
     ttlHours,
   });
@@ -549,6 +877,8 @@ export const createShareLink = onCall(async (request) => {
     expiresAt: expiresAtDate.toISOString(),
     targetType,
     targetId,
+    targetIds: targetIds ?? [targetId],
+    ownerNickname,
   };
 });
 
@@ -590,6 +920,7 @@ export const resolveSharedGallery = onCall(async (request) => {
   const token = parseToken(data.token);
   const shareBaseUrl = getShareBaseUrl(data.baseUrl);
   const {shareData, expiresAtDate} = await readActiveShare(token);
+  const targetIds = getShareImageIds(shareData);
 
   const target = shareData.targetType === "image" ?
     await resolveImageTarget({
@@ -598,23 +929,33 @@ export const resolveSharedGallery = onCall(async (request) => {
       shareToken: token,
       shareBaseUrl,
     }) :
-    await resolveSectionTarget({
-      ownerId: shareData.ownerId,
-      sectionId: shareData.targetId,
-      shareToken: token,
-      shareBaseUrl,
-    });
+    shareData.targetType === "section" ?
+      await resolveSectionTarget({
+        ownerId: shareData.ownerId,
+        sectionId: shareData.targetId,
+        shareToken: token,
+        shareBaseUrl,
+      }) :
+      await resolveImagesTarget({
+        ownerId: shareData.ownerId,
+        imageIds: targetIds,
+        shareToken: token,
+        shareBaseUrl,
+      });
 
   logger.info("Share link resolved", {
     token,
     targetType: shareData.targetType,
     targetId: shareData.targetId,
+    targetIdsCount: targetIds.length,
   });
 
   return {
     token,
     targetType: shareData.targetType,
     targetId: shareData.targetId,
+    targetIds,
+    ownerNickname: shareData.ownerNickname ?? "Usuario",
     expiresAt: expiresAtDate.toISOString(),
     sectionName: target.sectionName,
     images: target.images,

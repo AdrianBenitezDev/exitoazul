@@ -77,8 +77,9 @@ function DocumentIcon() {
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading, signOutUser } = useAuth();
+  const { user, nickname, loading, signOutUser } = useAuth();
   const isSharedView = location.pathname.startsWith('/s/');
+  const userLabel = nickname ?? user?.displayName ?? user?.email ?? 'Usuario';
 
   const handleSessionClick = async (): Promise<void> => {
     if (user) {
@@ -106,7 +107,7 @@ function AppLayout() {
           onClick={() => navigate('/index.html')}
         >
           <UserIcon />
-          <span>{user.displayName ?? user.email ?? 'Usuario'}</span>
+          <span>{userLabel}</span>
         </button>
       );
     }
@@ -143,7 +144,7 @@ function AppLayout() {
 
           <button type="button" className="user-chip" aria-label="Usuario actual">
             <UserIcon />
-            <span>{user.displayName ?? user.email ?? 'Usuario'}</span>
+            <span>{userLabel}</span>
           </button>
         </>
       );

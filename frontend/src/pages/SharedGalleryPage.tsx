@@ -408,7 +408,8 @@ function SharedGalleryPage() {
           <h3 className="shared-view-title">Vista Compartida</h3>
           {gallery && (
             <p className="inline-note">
-              Seccion: <strong>{gallery.sectionName}</strong> | Link valido hasta:{' '}
+              Compartido por: <strong>{gallery.ownerNickname}</strong> | Seccion:{' '}
+              <strong>{gallery.sectionName}</strong> | Link valido hasta:{' '}
               <strong>{formatDateTime(gallery.expiresAt)}</strong>
             </p>
           )}

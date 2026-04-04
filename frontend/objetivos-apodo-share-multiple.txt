@@ -1,0 +1,38 @@
+Objetivos solicitados (04-04-2026)
+
+1) Registro con apodo obligatorio:
+- Agregar input de apodo en registro.
+- Validar que tenga menos de 15 caracteres.
+- Validar disponibilidad del apodo al presionar "Registrar".
+
+2) Apodo visible en producto:
+- Mostrar apodo en banner (en lugar del nombre de usuario actual).
+- Mostrar apodo del propietario cuando se abre un link compartido.
+
+3) Compartido multiple por un solo link:
+- Al compartir varias imagenes por link, generar un unico token.
+- Guardar en Firebase un array de imageIds asociado al token.
+- Resolver ese token y renderizar solo las imagenes de ese array.
+
+4) Lectura de estructura Firebase actual (proyecto exitoazul-87247):
+- Firestore usado por frontend:
+  - users/{uid}/sections
+  - users/{uid}/images
+  - users/{uid}/sharedFavorites
+- Firestore usado por Cloud Functions:
+  - publicShares/{token}
+- Storage:
+  - users/{uid}/images/**
+- Reglas actuales:
+  - frontend/firestore.rules: acceso owner-only en users/** y bloqueo en publicShares.
+  - frontend/storage.rules: acceso owner-only en users/{uid}/images/**.
+
+5) Ajustes tecnicos previstos para cumplir lo pedido:
+- Agregar coleccion global para unicidad de apodos:
+  - nicknames/{nicknameKey}
+- Agregar Cloud Functions:
+  - checkNicknameAvailability
+  - claimNickname
+- Extender createShareLink/resolveSharedGallery para targetType "images" con targetIds[].
+- Actualizar frontend (registro/auth/layout/dashboard/share/shared view) para consumir los nuevos datos.
+

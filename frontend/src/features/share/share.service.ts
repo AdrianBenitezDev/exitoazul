@@ -8,8 +8,10 @@ type CreateShareLinkResponse = {
   token: string;
   url: string;
   expiresAt: string;
-  targetType: 'image' | 'section';
+  targetType: 'image' | 'section' | 'images';
   targetId: string;
+  targetIds?: string[];
+  ownerNickname?: string;
 };
 
 type RevokeShareLinkResponse = {
@@ -19,8 +21,10 @@ type RevokeShareLinkResponse = {
 
 type ResolveSharedGalleryResponse = {
   token: string;
-  targetType: 'image' | 'section';
+  targetType: 'image' | 'section' | 'images';
   targetId: string;
+  targetIds?: string[];
+  ownerNickname?: string;
   expiresAt: string;
   sectionName: string;
   images: Array<{
@@ -173,6 +177,8 @@ export const getShareErrorMessage = (
       return 'El link temporal esta vencido o fue revocado.';
     case 'functions/invalid-argument':
       return 'Los datos enviados son invalidos.';
+    case 'functions/already-exists':
+      return 'El recurso indicado ya existe.';
     case 'functions/unavailable':
       return 'El servicio de compartido no esta disponible temporalmente.';
     default:
@@ -199,6 +205,8 @@ export const createTemporaryShareLink = async (
     expiresAt: normalizeDate(response.data.expiresAt),
     targetType: response.data.targetType,
     targetId: response.data.targetId,
+    targetIds: response.data.targetIds ?? [response.data.targetId],
+    ownerNickname: response.data.ownerNickname ?? 'Usuario',
   };
 };
 
@@ -230,6 +238,8 @@ export const resolveSharedGalleryByToken = async (token: string): Promise<Shared
     token: response.data.token,
     targetType: response.data.targetType,
     targetId: response.data.targetId,
+    targetIds: response.data.targetIds ?? [response.data.targetId],
+    ownerNickname: response.data.ownerNickname ?? 'Usuario',
     expiresAt: normalizeDate(response.data.expiresAt),
     sectionName: response.data.sectionName,
     images: response.data.images,

@@ -4,10 +4,10 @@ import { getAuthErrorMessage } from '../auth/authErrors';
 import { useAuth } from '../auth/useAuth';
 
 function RegisterPage() {
-  const { registerWithEmail } = useAuth();
+  const { checkNicknameAvailability, registerWithEmail } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [fullName, setFullName] = useState<string>('');
+  const [nickname, setNickname] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -19,9 +19,15 @@ function RegisterPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    const trimmedNickname = nickname.trim();
 
-    if (!fullName.trim() || !email.trim() || password.length < 6) {
-      setMessage('Completa nombre, email y una clave de al menos 6 caracteres.');
+    if (!trimmedNickname || !email.trim() || password.length < 6) {
+      setMessage('Completa apodo, email y una clave de al menos 6 caracteres.');
+      return;
+    }
+
+    if (trimmedNickname.length >= 15) {
+      setMessage('El apodo debe tener menos de 15 caracteres.');
       return;
     }
 
@@ -34,15 +40,34 @@ function RegisterPage() {
     setMessage('');
 
     try {
+      const availability = await checkNicknameAvailability(trimmedNickname);
+      if (!availability.available) {
+        setMessage('Ese apodo ya esta en uso. Elige otro.');
+        return;
+      }
+
       await registerWithEmail({
-        fullName,
+        nickname: trimmedNickname,
         email,
         password,
       });
 
       navigate(redirectPath, { replace: true });
     } catch (error) {
-      setMessage(getAuthErrorMessage(error, 'No se pudo crear la cuenta con este email.'));
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const code = String((error as { code?: string }).code ?? '');
+        if (code === 'functions/already-exists') {
+          setMessage('Ese apodo ya fue reservado por otro usuario. Intenta con otro.');
+          return;
+        }
+
+        if (code === 'functions/invalid-argument') {
+          setMessage('El apodo no cumple las reglas permitidas.');
+          return;
+        }
+      }
+
+      setMessage(getAuthErrorMessage(error, 'No se pudo crear la cuenta con estos datos.'));
     } finally {
       setIsLoading(false);
     }
@@ -59,16 +84,18 @@ function RegisterPage() {
       <section className="panel">
         <form className="stack-form" onSubmit={(event) => void handleSubmit(event)}>
           <label>
-            Nombre completo
+            Apodo
             <input
               type="text"
-              autoComplete="name"
-              value={fullName}
+              autoComplete="nickname"
+              value={nickname}
               onChange={(event) => {
-                setFullName(event.target.value);
+                setNickname(event.target.value);
               }}
-              placeholder="Ejemplo: Ana Perez"
+              placeholder="Ejemplo: ana_23"
+              maxLength={14}
             />
+            <span className="inline-note">Hasta 14 caracteres: letras, numeros, punto, guion o guion bajo.</span>
           </label>
 
           <label>

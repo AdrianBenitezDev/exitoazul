@@ -25,7 +25,6 @@ import {
   revokeTemporaryShareLink,
   shareFilesDirect,
   shareTemporaryLink,
-  shareTemporaryLinks,
 } from '../features/share/share.service';
 import type { ShareLinkResult } from '../features/share/share.types';
 import { firestoreDb, firebaseStorage } from '../lib/firebase';
@@ -616,43 +615,14 @@ function DashboardPage() {
 
   const createLinksForImages = async (
     selectedImages: GalleryImage[],
-  ): Promise<{ links: ShareLinkResult[]; failedCount: number }> => {
-    const results = await Promise.allSettled(
-      selectedImages.map((image) =>
-        createTemporaryShareLink({
-          targetType: 'image',
-          targetId: image.id,
-          ttlHours: 12,
-        }),
-      ),
-    );
+  ): Promise<ShareLinkResult> => {
+    const targetIds = selectedImages.map((image) => image.id);
 
-    const links: ShareLinkResult[] = [];
-    let failedCount = 0;
-
-    results.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        links.push(result.value);
-        return;
-      }
-
-      failedCount += 1;
+    return createTemporaryShareLink({
+      targetType: 'images',
+      targetIds,
+      ttlHours: 12,
     });
-
-    return {
-      links,
-      failedCount,
-    };
-  };
-
-  const revokeLinksBestEffort = async (links: ShareLinkResult[]): Promise<number> => {
-    const results = await Promise.allSettled(
-      links.map((link) => revokeTemporaryShareLink(link.token)),
-    );
-
-    return results.filter(
-      (result) => result.status === 'fulfilled' && result.value === true,
-    ).length;
   };
 
   const handleCreateSection = async (): Promise<void> => {
@@ -1473,56 +1443,24 @@ function DashboardPage() {
 
     setIsSharing(true);
 
-    const createdLinks: ShareLinkResult[] = [];
-    let linkFailures = 0;
-
     try {
-      const createResult = await createLinksForImages(selectedVisibleImages);
-      createdLinks.push(...createResult.links);
-      linkFailures = createResult.failedCount;
-
-      if (createdLinks.length === 0) {
-        setFeedback({
-          tone: 'warning',
-          message: 'No se pudo generar ningun link temporal para las imagenes seleccionadas.',
-        });
-        return;
-      }
-
-      setLastLink(createdLinks[createdLinks.length - 1] ?? null);
-      await shareTemporaryLinks(createdLinks);
+      const link = await createLinksForImages(selectedVisibleImages);
+      setLastLink(link);
+      await shareTemporaryLink(link);
       setFeedback({
-        tone: linkFailures > 0 ? 'info' : 'success',
-        message:
-          linkFailures > 0
-            ? `Se compartieron ${createdLinks.length} links y ${linkFailures} imagen(es) no pudieron generar link.`
-            : `Se compartieron ${createdLinks.length} links temporales para imagenes seleccionadas.`,
+        tone: 'success',
+        message: `Se compartio 1 link temporal con ${selectedVisibleImages.length} imagen(es). Vence el ${formatDateTime(link.expiresAt)}.`,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (createdLinks.length > 0) {
-          const revokedCount = await revokeLinksBestEffort(createdLinks);
-          setLastLink(null);
-          setFeedback({
-            tone: 'info',
-            message: `El envio se cancelo por el usuario. Se revocaron ${revokedCount}/${createdLinks.length} links generados.`,
-          });
-          return;
-        }
-
         setFeedback({
           tone: 'info',
           message: 'El envio se cancelo por el usuario.',
         });
       } else {
-        if (createdLinks.length > 0) {
-          void revokeLinksBestEffort(createdLinks);
-          setLastLink(null);
-        }
-
         setFeedback({
           tone: 'warning',
-          message: getShareErrorMessage(error, 'No se pudieron compartir los links seleccionados.'),
+          message: getShareErrorMessage(error, 'No se pudo compartir el link de la seleccion.'),
         });
       }
     } finally {
@@ -1540,7 +1478,6 @@ function DashboardPage() {
     }
 
     setIsSharing(true);
-    const fallbackLinks: ShareLinkResult[] = [];
 
     try {
       const filesWithUndefined = await Promise.all(
@@ -1561,49 +1498,22 @@ function DashboardPage() {
           message: `Se compartieron ${files.length} imagen(es) como archivo adjunto.`,
         });
       } else {
-        const createResult = await createLinksForImages(selectedVisibleImages);
-        if (createResult.links.length === 0) {
-          setFeedback({
-            tone: 'warning',
-            message:
-              'No hubo compatibilidad para compartir archivos y tampoco se pudieron generar links temporales.',
-          });
-          return;
-        }
-
-        fallbackLinks.push(...createResult.links);
-        setLastLink(fallbackLinks[fallbackLinks.length - 1] ?? null);
-        await shareTemporaryLinks(fallbackLinks);
+        const fallbackLink = await createLinksForImages(selectedVisibleImages);
+        setLastLink(fallbackLink);
+        await shareTemporaryLink(fallbackLink);
         setFeedback({
-          tone: createResult.failedCount > 0 ? 'info' : 'success',
+          tone: 'success',
           message:
-            createResult.failedCount > 0
-              ? `No hubo compatibilidad para compartir archivos. Se compartieron ${createResult.links.length} links y ${createResult.failedCount} imagen(es) quedaron sin link.`
-              : `No hubo compatibilidad para compartir archivos. Se enviaron ${createResult.links.length} links temporales.`,
+            `No hubo compatibilidad para compartir archivos. Se envio 1 link temporal con ${selectedVisibleImages.length} imagen(es).`,
         });
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (fallbackLinks.length > 0) {
-          const revokedCount = await revokeLinksBestEffort(fallbackLinks);
-          setLastLink(null);
-          setFeedback({
-            tone: 'info',
-            message: `El envio se cancelo por el usuario. Se revocaron ${revokedCount}/${fallbackLinks.length} links generados.`,
-          });
-          return;
-        }
-
         setFeedback({
           tone: 'info',
           message: 'El envio se cancelo por el usuario.',
         });
       } else {
-        if (fallbackLinks.length > 0) {
-          void revokeLinksBestEffort(fallbackLinks);
-          setLastLink(null);
-        }
-
         setFeedback({
           tone: 'warning',
           message: getShareErrorMessage(error, 'No fue posible compartir las imagenes seleccionadas.'),

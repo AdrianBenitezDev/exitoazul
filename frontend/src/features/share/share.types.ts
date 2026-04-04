@@ -1,8 +1,9 @@
-﻿export type ShareTargetType = 'image' | 'section';
+export type ShareTargetType = 'image' | 'section' | 'images';
 
 export type ShareLinkRequest = {
   targetType: ShareTargetType;
-  targetId: string;
+  targetId?: string;
+  targetIds?: string[];
   ttlHours?: number;
 };
 
@@ -12,6 +13,8 @@ export type ShareLinkResult = {
   expiresAt: Date;
   targetType: ShareTargetType;
   targetId: string;
+  targetIds: string[];
+  ownerNickname: string;
 };
 
 export type SharedImageView = {
@@ -25,6 +28,8 @@ export type SharedGalleryResult = {
   token: string;
   targetType: ShareTargetType;
   targetId: string;
+  targetIds: string[];
+  ownerNickname: string;
   expiresAt: Date;
   sectionName: string;
   images: SharedImageView[];
