@@ -31,6 +31,7 @@ type ResolveSharedGalleryResponse = {
     id: string;
     fileName: string;
     previewUrl: string;
+    thumbnailUrl?: string;
     sectionId: string;
   }>;
 };

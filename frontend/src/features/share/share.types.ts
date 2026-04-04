@@ -21,6 +21,7 @@ export type SharedImageView = {
   id: string;
   fileName: string;
   previewUrl: string;
+  thumbnailUrl?: string;
   sectionId: string;
 };
 

@@ -308,6 +308,8 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   );
 }
 
+const IMAGES_PAGE_STEP = 60;
+
 function DashboardPage() {
   const { user } = useAuth();
   const [sections, setSections] = useState<GallerySection[]>([]);
@@ -336,6 +338,7 @@ function DashboardPage() {
   const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
   const [isCapturingPhoto, setIsCapturingPhoto] = useState<boolean>(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState<string>('');
+  const [imagesLimit, setImagesLimit] = useState<number>(IMAGES_PAGE_STEP);
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
   const galleryPickerInputRef = useRef<HTMLInputElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -350,6 +353,7 @@ function DashboardPage() {
       setSections([]);
       setImages([]);
       setSelectedSectionId('');
+      setImagesLimit(IMAGES_PAGE_STEP);
       setIsLoadingData(false);
       return;
     }
@@ -414,13 +418,14 @@ function DashboardPage() {
         imagesReady = true;
         markReady();
       },
+      imagesLimit,
     );
 
     return () => {
       unsubscribeSections();
       unsubscribeImages();
     };
-  }, [user]);
+  }, [user, imagesLimit]);
 
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? null,
@@ -431,6 +436,7 @@ function DashboardPage() {
     () => images.filter((image) => image.sectionId === selectedSectionId),
     [images, selectedSectionId],
   );
+  const canLoadMoreImages = images.length >= imagesLimit;
 
   const expandedImage = useMemo(
     () => images.find((image) => image.id === expandedImageId) ?? null,
@@ -1555,6 +1561,10 @@ function DashboardPage() {
     }
   };
 
+  const handleLoadMoreImages = (): void => {
+    setImagesLimit((currentLimit) => currentLimit + IMAGES_PAGE_STEP);
+  };
+
   return (
     <div className="page-stack">
       <section className="panel">
@@ -1786,7 +1796,7 @@ function DashboardPage() {
                       aria-label={`Ampliar ${image.fileName}`}
                     >
                       <img
-                        src={image.previewUrl}
+                        src={image.thumbnailUrl ?? image.previewUrl}
                         alt={image.fileName}
                         loading="lazy"
                         decoding="async"
@@ -1821,6 +1831,19 @@ function DashboardPage() {
                 </article>
               ))}
             </div>
+
+            {canLoadMoreImages && (
+              <div className="gallery-more-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={handleLoadMoreImages}
+                  disabled={isLoadingData}
+                >
+                  Cargar mas imagenes
+                </button>
+              </div>
+            )}
 
             {visibleImages.length === 0 && visiblePendingUploadCards.length === 0 && (
               <p className="empty-state">

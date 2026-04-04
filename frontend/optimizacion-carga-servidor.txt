@@ -1,0 +1,25 @@
+Optimizacion de carga de imagenes (04-04-2026)
+
+1) Backend de imagen compartida en streaming (sin buffer completo en memoria).
+Estado: Resuelto
+Resultado: Implementado streaming con createReadStream, ETag y cache privada corta.
+
+2) Unificar region de Functions con datos (us-south1) para reducir latencia.
+Estado: Resuelto
+Resultado: Configurada region global us-south1 en Functions (aplica al proximo deploy).
+
+3) Miniaturas reales (thumbnail) y uso de miniatura en cards.
+Estado: Resuelto
+Resultado: Implementadas miniaturas WebP al subir y uso de thumbnail en cards.
+
+4) Reducir carga eager en /s/ (vista compartida).
+Estado: Resuelto
+Resultado: Eager reducido a 2 imagenes (fetchPriority alto solo en la primera).
+
+5) Compresion/redimension de imagen al subir.
+Estado: Resuelto
+Resultado: Se agrega optimizacion de upload (reescala y convierte a WebP cuando conviene).
+
+6) Paginacion incremental de imagenes en dashboard.
+Estado: Resuelto
+Resultado: Se limita carga inicial y se agrega boton "Cargar mas imagenes".

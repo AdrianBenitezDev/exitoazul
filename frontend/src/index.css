@@ -950,6 +950,12 @@ code {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
+.gallery-more-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.9rem;
+}
+
 .image-card {
   border-radius: 11px;
   border: 1px solid var(--line);

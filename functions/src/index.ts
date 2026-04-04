@@ -17,7 +17,10 @@ import {
 } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 
-setGlobalOptions({maxInstances: 10});
+setGlobalOptions({
+  maxInstances: 10,
+  region: "us-south1",
+});
 
 initializeApp();
 const db = getFirestore();
@@ -65,6 +68,8 @@ type ImageDoc = {
   sectionId?: string;
   storagePath?: string;
   downloadUrl?: string;
+  thumbStoragePath?: string;
+  thumbnailUrl?: string;
   createdAt?: Timestamp;
 };
 
@@ -87,6 +92,7 @@ type SharedImageItem = {
   id: string;
   fileName: string;
   storagePath: string;
+  thumbStoragePath?: string;
   sectionId: string;
   createdAtMillis: number;
 };
@@ -100,6 +106,8 @@ const SHARE_TOKEN_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const MAX_NICKNAME_LENGTH = 14;
 const NICKNAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+type SharedImageVariant = "full" | "thumb";
 
 const trimFinalSlash = (value: string): string => value.replace(/\/+$/, "");
 
@@ -143,6 +151,16 @@ const parseImageId = (value: string | undefined): string => {
   }
 
   return imageId;
+};
+
+const parseSharedImageVariant = (
+  value: string | undefined,
+): SharedImageVariant => {
+  if ((value?.trim() ?? "").toLowerCase() === "thumb") {
+    return "thumb";
+  }
+
+  return "full";
 };
 
 const parseImageIds = (value: unknown): string[] => {
@@ -369,10 +387,12 @@ const buildSharedImageProxyUrl = (
   shareBaseUrl: string,
   token: string,
   imageId: string,
+  variant: SharedImageVariant = "full",
 ): string =>
   `${trimFinalSlash(shareBaseUrl)}/api/shared-image` +
   `?token=${encodeURIComponent(token)}` +
-  `&imageId=${encodeURIComponent(imageId)}`;
+  `&imageId=${encodeURIComponent(imageId)}` +
+  `&variant=${encodeURIComponent(variant)}`;
 
 const readActiveShare = async (token: string): Promise<{
   shareData: ShareLinkDoc;
@@ -484,6 +504,7 @@ const toSharedImageItem = (
     id: snapshot.id,
     fileName: data.fileName?.trim() || snapshot.id,
     storagePath,
+    thumbStoragePath: data.thumbStoragePath?.trim() || undefined,
     sectionId: data.sectionId ?? "",
     createdAtMillis,
   };
@@ -496,7 +517,13 @@ const toPublicImage = (
 ) => ({
   id: image.id,
   fileName: image.fileName,
-  previewUrl: buildSharedImageProxyUrl(shareBaseUrl, token, image.id),
+  previewUrl: buildSharedImageProxyUrl(shareBaseUrl, token, image.id, "full"),
+  thumbnailUrl: buildSharedImageProxyUrl(
+    shareBaseUrl,
+    token,
+    image.id,
+    "thumb",
+  ),
   sectionId: image.sectionId,
 });
 
@@ -545,6 +572,7 @@ const resolveImageTarget = async (params: {
     id: imageSnapshot.id,
     fileName: imageData.fileName?.trim() || imageSnapshot.id,
     storagePath,
+    thumbStoragePath: imageData.thumbStoragePath?.trim() || undefined,
     sectionId: imageData.sectionId ?? "",
     createdAtMillis: imageData.createdAt instanceof Timestamp ?
       imageData.createdAt.toMillis() :
@@ -590,6 +618,7 @@ const resolveImagesTarget = async (params: {
       id: snapshot.id,
       fileName: imageData.fileName?.trim() || snapshot.id,
       storagePath,
+      thumbStoragePath: imageData.thumbStoragePath?.trim() || undefined,
       sectionId: imageData.sectionId ?? "",
       createdAtMillis: imageData.createdAt instanceof Timestamp ?
         imageData.createdAt.toMillis() :
@@ -659,6 +688,9 @@ export const serveSharedImage = onRequest(async (request, response) => {
   try {
     const token = parseToken(readQueryValue(request.query.token));
     const imageId = parseImageId(readQueryValue(request.query.imageId));
+    const variant = parseSharedImageVariant(
+      readQueryValue(request.query.variant),
+    );
     const {shareData} = await readActiveShare(token);
 
     if (shareData.targetType === "image" && shareData.targetId !== imageId) {
@@ -695,32 +727,78 @@ export const serveSharedImage = onRequest(async (request, response) => {
       );
     }
 
-    const storagePath = resolveImageStoragePath(imageData);
-    if (!storagePath) {
+    const fullStoragePath = resolveImageStoragePath(imageData);
+    if (!fullStoragePath) {
       throw new HttpsError(
         "failed-precondition",
         "La imagen no tiene ruta valida en almacenamiento.",
       );
     }
 
-    const file = getStorage().bucket().file(storagePath);
-    const [exists] = await file.exists();
-    if (!exists) {
-      throw new HttpsError("not-found", "El archivo de imagen no existe.");
-    }
+    const thumbnailStoragePath = imageData.thumbStoragePath?.trim() ?? "";
+    const storagePath =
+      variant === "thumb" && thumbnailStoragePath ?
+        thumbnailStoragePath :
+        fullStoragePath;
 
-    const [buffer] = await file.download();
-    const [metadata] = await file.getMetadata();
+    const file = getStorage().bucket().file(storagePath);
+    const [metadata] = await file.getMetadata().catch((error: unknown) => {
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error ?
+          String((error as {code?: unknown}).code ?? "") :
+          "";
+
+      if (code === "404") {
+        throw new HttpsError("not-found", "El archivo de imagen no existe.");
+      }
+
+      throw error;
+    });
+
     const contentType = metadata.contentType || "application/octet-stream";
     const fileName = (imageData.fileName?.trim() || imageSnapshot.id)
       .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const generation = metadata.generation ?? "";
+    const metageneration = metadata.metageneration ?? "";
+    const etag = metadata.etag?.trim() || `${generation}-${metageneration}`;
+    const ifNoneMatch = request.header("if-none-match")?.trim() ?? "";
 
-    response.set("Cache-Control", "private, no-store, max-age=0");
-    response.set("Pragma", "no-cache");
+    if (ifNoneMatch && etag && ifNoneMatch === etag) {
+      response.status(304).end();
+      return;
+    }
+
+    const cacheSeconds = variant === "thumb" ? 300 : 120;
+    response.set(
+      "Cache-Control",
+      `private, max-age=${cacheSeconds}, must-revalidate`,
+    );
     response.set("X-Content-Type-Options", "nosniff");
     response.set("Content-Disposition", `inline; filename="${fileName}"`);
     response.set("Content-Type", contentType);
-    response.status(200).send(buffer);
+    response.set("ETag", etag);
+
+    if (metadata.size) {
+      response.set("Content-Length", String(metadata.size));
+    }
+
+    response.status(200);
+
+    const readStream = file.createReadStream();
+    readStream.on("error", (streamError) => {
+      logger.error("Shared image stream failed", streamError);
+
+      if (response.headersSent) {
+        response.destroy(streamError as Error);
+        return;
+      }
+
+      response.status(500).send("No fue posible enviar la imagen compartida.");
+    });
+
+    readStream.pipe(response);
   } catch (error) {
     if (error instanceof HttpsError) {
       response.status(getHttpStatusFromHttpsError(error)).send(error.message);

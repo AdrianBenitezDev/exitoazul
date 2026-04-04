@@ -443,10 +443,10 @@ function SharedGalleryPage() {
                           aria-label={`Ampliar ${image.fileName}`}
                         >
                           <img
-                            src={image.previewUrl}
+                            src={image.thumbnailUrl ?? image.previewUrl}
                             alt={image.fileName}
-                            loading={index < 8 ? 'eager' : 'lazy'}
-                            fetchPriority={index < 3 ? 'high' : 'auto'}
+                            loading={index < 2 ? 'eager' : 'lazy'}
+                            fetchPriority={index < 1 ? 'high' : 'auto'}
                             decoding="async"
                             className={
                               loadedCardImageIds[image.id]
