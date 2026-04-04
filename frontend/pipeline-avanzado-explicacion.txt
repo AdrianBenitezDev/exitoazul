@@ -1,0 +1,42 @@
+Pipeline avanzado: que significa en tu proyecto
+
+1) Que tienes hoy (estado actual)
+- Tu camara ya funciona y aplica un filtro basico con Jeeliz.
+- El efecto actual es simple y rapido de mantener.
+- Es una buena base para crecer sin romper la app.
+
+2) Que significa "pipeline avanzado"
+- Es una cadena de procesamiento de imagen por etapas.
+- En vez de un solo efecto simple, la imagen pasa por varios pasos controlados.
+
+Ejemplo de etapas:
+- Entrada: frame de camara o foto capturada.
+- Correccion: exposicion, color, contraste.
+- Estilo: look visual (preset/LUT).
+- Efectos avanzados: glow, grano real, halacion, etc.
+- Salida: preview y export final.
+
+3) Que son shaders, LUT y efectos complejos
+- Shaders: pequenos programas de GPU (WebGL/WebGPU) para procesar pixeles en tiempo real.
+- LUT: tablas de color para aplicar estilos cinematograficos de forma consistente.
+- Efectos complejos: combinaciones por capa (mascaras, desenfoques selectivos, mezcla aditiva, ruido real, etc.).
+
+4) Por que no se incluyo ahora
+- Para priorizar estabilidad y simplicidad en esta etapa.
+- Porque los efectos avanzados aumentan complejidad, pruebas y consumo de recursos.
+- Porque primero conviene tener una base limpia (que ya la tienes).
+
+5) Cuando conviene migrar a pipeline avanzado
+- Cuando quieras calidad visual tipo app profesional.
+- Cuando necesites mas control por filtro (intensidad, tono, piel, ojos, luces).
+- Cuando quieras presets reutilizables por usuario.
+
+6) Plan recomendado para evolucionar sin riesgo
+- Fase 1: mantener Jeeliz basico estable (actual).
+- Fase 2: agregar motor de filtros por etapas con controles de intensidad.
+- Fase 3: mover efectos pesados a shaders GPU.
+- Fase 4: guardar presets personalizados y optimizar rendimiento mobile.
+
+Resumen corto
+- "No se agrego pipeline avanzado" significa: hoy tienes una version funcional y simple.
+- "Base limpia para escalar" significa: el codigo ya esta ordenado para agregar despues filtros pro sin rehacer todo.

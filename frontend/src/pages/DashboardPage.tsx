@@ -82,6 +82,7 @@ const JEELIZ_SCRIPT_SRC = 'https://appstatic.jeeliz.com/faceFilter/jeelizFaceFil
 const JEELIZ_NNC_PATH = 'https://appstatic.jeeliz.com/faceFilter/';
 const JEELIZ_CANVAS_ID = 'jeelizFaceFilterCanvas';
 const JEELIZ_DETECTION_THRESHOLD = 0.62;
+const JEELIZ_CANVAS_WAIT_MS = 2500;
 
 let jeelizScriptPromise: Promise<JeelizFaceFilterApi> | null = null;
 
@@ -196,6 +197,26 @@ const drawBasicJeelizOverlay = (
   context.fill();
 
   context.restore();
+};
+
+const waitForCanvasElement = async (
+  canvasId: string,
+  timeoutMs: number,
+): Promise<HTMLCanvasElement | null> => {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const foundCanvas = document.getElementById(canvasId);
+    if (foundCanvas instanceof HTMLCanvasElement) {
+      return foundCanvas;
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
+  return null;
 };
 
 const buildSourceFileFromUrl = async (
@@ -836,6 +857,11 @@ function DashboardPage() {
     setIsCameraLiveOpen(true);
 
     try {
+      const canvasElement = await waitForCanvasElement(JEELIZ_CANVAS_ID, JEELIZ_CANVAS_WAIT_MS);
+      if (!canvasElement) {
+        throw new Error('No se pudo abrir el visor de camara. Intenta nuevamente.');
+      }
+
       const jeelizApi = await loadJeelizFaceFilter();
       try {
         jeelizApi.destroy?.();
@@ -1757,16 +1783,6 @@ function DashboardPage() {
           </div>
 
           <div className="camera-control-panel" role="group" aria-label="Panel de filtros Jeeliz">
-            <button
-              type="button"
-              className="camera-control-btn"
-              onClick={() => {
-                void startJeelizCamera();
-              }}
-              disabled={isCameraStarting || isCapturingPhoto}
-            >
-              Activar camara
-            </button>
             <button
               type="button"
               className={
