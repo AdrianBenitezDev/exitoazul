@@ -43,6 +43,7 @@ type PendingUploadCard = {
 
 type CameraFilterId =
   | 'none'
+  | 'insta'
   | 'vivid'
   | 'mono'
   | 'warm'
@@ -107,6 +108,8 @@ const formatDateTime = (date: Date): string =>
 
 const cameraFilterOptions: Array<{ id: CameraFilterId; label: string; cssFilter: string }> = [
   { id: 'none', label: 'Normal', cssFilter: 'none' },
+  // "Insta": look belleza/calido aproximado con CSS filter.
+  { id: 'insta', label: 'Insta', cssFilter: 'brightness(1.06) contrast(1.08) saturate(1.2) sepia(0.08) hue-rotate(-6deg)' },
   { id: 'vivid', label: 'Vivo', cssFilter: 'saturate(1.25) contrast(1.08)' },
   { id: 'mono', label: 'B/N', cssFilter: 'grayscale(1) contrast(1.05)' },
   { id: 'warm', label: 'Calido', cssFilter: 'sepia(0.24) saturate(1.2) hue-rotate(-12deg)' },
