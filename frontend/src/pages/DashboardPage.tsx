@@ -41,11 +41,13 @@ type PendingUploadCard = {
   fileName: string;
 };
 
+type CameraFilterId = 'none' | 'vivid' | 'mono' | 'warm' | 'cool';
+
 type CameraDraft = {
   file: File;
   previewUrl: string;
-  // Placeholder for future filter pipeline (Instagram-like effects).
-  filterPreset: 'none';
+  // Extension point for future Instagram-like pipeline.
+  filterPreset: CameraFilterId;
 };
 
 const formatDateTime = (date: Date): string =>
@@ -53,6 +55,14 @@ const formatDateTime = (date: Date): string =>
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);
+
+const cameraFilterOptions: Array<{ id: CameraFilterId; label: string; cssFilter: string }> = [
+  { id: 'none', label: 'Normal', cssFilter: 'none' },
+  { id: 'vivid', label: 'Vivo', cssFilter: 'saturate(1.25) contrast(1.08)' },
+  { id: 'mono', label: 'B/N', cssFilter: 'grayscale(1) contrast(1.05)' },
+  { id: 'warm', label: 'Calido', cssFilter: 'sepia(0.24) saturate(1.2) hue-rotate(-12deg)' },
+  { id: 'cool', label: 'Frio', cssFilter: 'saturate(1.08) hue-rotate(16deg) brightness(1.02)' },
+];
 
 const buildSourceFileFromUrl = async (
   imageUrl: string,
@@ -204,7 +214,16 @@ function DashboardPage() {
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
   const [cameraDraft, setCameraDraft] = useState<CameraDraft | null>(null);
+  const [selectedCameraFilter, setSelectedCameraFilter] = useState<CameraFilterId>('none');
+  const [isCameraLiveOpen, setIsCameraLiveOpen] = useState<boolean>(false);
+  const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState<boolean>(false);
+  const [cameraErrorMessage, setCameraErrorMessage] = useState<string>('');
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryPickerInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -561,6 +580,13 @@ function DashboardPage() {
     void handleCreateSection();
   };
 
+  const selectedCameraFilterConfig = useMemo(
+    () =>
+      cameraFilterOptions.find((filterOption) => filterOption.id === selectedCameraFilter) ??
+      cameraFilterOptions[0],
+    [selectedCameraFilter],
+  );
+
   const clearCameraDraft = useCallback((): void => {
     setCameraDraft((current) => {
       if (current?.previewUrl) {
@@ -573,6 +599,10 @@ function DashboardPage() {
     if (cameraCaptureInputRef.current) {
       cameraCaptureInputRef.current.value = '';
     }
+
+    if (galleryPickerInputRef.current) {
+      galleryPickerInputRef.current.value = '';
+    }
   }, []);
 
   useEffect(() => {
@@ -581,7 +611,163 @@ function DashboardPage() {
         URL.revokeObjectURL(cameraDraft.previewUrl);
       }
     };
+  }, [cameraDraft?.previewUrl]);
+
+  const stopLiveCameraStream = useCallback((): void => {
+    const activeStream = cameraStreamRef.current;
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => {
+        track.stop();
+      });
+      cameraStreamRef.current = null;
+    }
+
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = null;
+    }
+
+    setIsCameraLiveOpen(false);
+    setIsCameraStarting(false);
+    setIsCapturingPhoto(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopLiveCameraStream();
+    };
+  }, [stopLiveCameraStream]);
+
+  const createCameraDraftFromFile = useCallback(
+    (capturedFile: File, filterPreset: CameraFilterId): void => {
+      if (!capturedFile.type.startsWith('image/')) {
+        setFeedback({
+          tone: 'warning',
+          message: 'Solo se permiten archivos de imagen.',
+        });
+        return;
+      }
+
+      const previewUrl = URL.createObjectURL(capturedFile);
+      setCameraDraft((current) => {
+        if (current?.previewUrl) {
+          URL.revokeObjectURL(current.previewUrl);
+        }
+
+        return {
+          file: capturedFile,
+          previewUrl,
+          filterPreset,
+        };
+      });
+    },
+    [],
+  );
+
+  const drawDraftIntoCanvas = useCallback((): void => {
+    if (!cameraDraft || !cameraCanvasRef.current) {
+      return;
+    }
+
+    const canvas = cameraCanvasRef.current;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return;
+    }
+
+    const image = new Image();
+    image.onload = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const pixelRatio = window.devicePixelRatio || 1;
+
+      canvas.width = Math.max(1, Math.floor(viewportWidth * pixelRatio));
+      canvas.height = Math.max(1, Math.floor(viewportHeight * pixelRatio));
+      canvas.style.width = `${viewportWidth}px`;
+      canvas.style.height = `${viewportHeight}px`;
+
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      context.clearRect(0, 0, viewportWidth, viewportHeight);
+
+      // Draw in "cover" mode so the captured frame fills the full-screen canvas.
+      const imageRatio = image.width / image.height;
+      const viewportRatio = viewportWidth / viewportHeight;
+      let drawWidth = viewportWidth;
+      let drawHeight = viewportHeight;
+      let drawX = 0;
+      let drawY = 0;
+
+      if (imageRatio > viewportRatio) {
+        drawHeight = viewportHeight;
+        drawWidth = viewportHeight * imageRatio;
+        drawX = (viewportWidth - drawWidth) / 2;
+      } else {
+        drawWidth = viewportWidth;
+        drawHeight = viewportWidth / imageRatio;
+        drawY = (viewportHeight - drawHeight) / 2;
+      }
+
+      context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+    };
+    image.src = cameraDraft.previewUrl;
   }, [cameraDraft]);
+
+  useEffect(() => {
+    if (!cameraDraft) {
+      return;
+    }
+
+    drawDraftIntoCanvas();
+    const handleResize = (): void => {
+      drawDraftIntoCanvas();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [cameraDraft, drawDraftIntoCanvas]);
+
+  const startLiveCamera = useCallback(async (): Promise<boolean> => {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      return false;
+    }
+
+    try {
+      setIsCameraStarting(true);
+      setCameraErrorMessage('');
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: {
+            ideal: 'environment',
+          },
+        },
+        audio: false,
+      });
+
+      cameraStreamRef.current = stream;
+      setIsCameraLiveOpen(true);
+      setIsCameraStarting(false);
+      return true;
+    } catch {
+      setIsCameraStarting(false);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isCameraLiveOpen || !cameraVideoRef.current || !cameraStreamRef.current) {
+      return;
+    }
+
+    const video = cameraVideoRef.current;
+    video.srcObject = cameraStreamRef.current;
+    void video.play().catch(() => undefined);
+
+    return () => {
+      video.srcObject = null;
+    };
+  }, [isCameraLiveOpen]);
 
   const uploadSelectedFiles = async (selectedFiles: File[]): Promise<void> => {
     if (selectedFiles.length === 0) {
@@ -704,12 +890,28 @@ function DashboardPage() {
     await uploadSelectedFiles(selectedFiles);
   };
 
-  const handleOpenCameraCapture = (): void => {
+  const handleOpenCameraCapture = async (): Promise<void> => {
     if (isUploading || !selectedSection) {
       return;
     }
 
+    const openedLiveCamera = await startLiveCamera();
+    if (openedLiveCamera) {
+      return;
+    }
+
+    setCameraErrorMessage(
+      'No se pudo abrir la camara en modo avanzado. Se abrira la camara nativa o galeria.',
+    );
     cameraCaptureInputRef.current?.click();
+  };
+
+  const handleOpenGalleryPicker = (): void => {
+    if (isUploading || !selectedSection) {
+      return;
+    }
+
+    galleryPickerInputRef.current?.click();
   };
 
   const handleCameraCaptureChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -720,28 +922,75 @@ function DashboardPage() {
       return;
     }
 
-    if (!capturedFile.type.startsWith('image/')) {
-      setFeedback({
-        tone: 'warning',
-        message: 'Solo se permiten archivos de imagen.',
-      });
+    stopLiveCameraStream();
+    createCameraDraftFromFile(capturedFile, 'none');
+  };
+
+  const handleGalleryPickerChange = (event: ChangeEvent<HTMLInputElement>): void => {
+    const selectedFile = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!selectedFile) {
       return;
     }
 
-    const previewUrl = URL.createObjectURL(capturedFile);
+    stopLiveCameraStream();
+    createCameraDraftFromFile(selectedFile, 'none');
+  };
 
-    // Keep original file + preview in state so we can plug filters before upload later.
-    setCameraDraft((current) => {
-      if (current?.previewUrl) {
-        URL.revokeObjectURL(current.previewUrl);
-      }
+  const handleCapturePhotoFromLiveCamera = async (): Promise<void> => {
+    if (!cameraVideoRef.current) {
+      return;
+    }
 
-      return {
-        file: capturedFile,
-        previewUrl,
-        filterPreset: 'none',
-      };
+    const video = cameraVideoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraErrorMessage('La camara aun no esta lista. Intenta nuevamente en un segundo.');
+      return;
+    }
+
+    setIsCapturingPhoto(true);
+
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = video.videoWidth;
+    captureCanvas.height = video.videoHeight;
+    const context = captureCanvas.getContext('2d');
+
+    if (!context) {
+      setIsCapturingPhoto(false);
+      setCameraErrorMessage('No se pudo capturar la imagen.');
+      return;
+    }
+
+    context.filter = selectedCameraFilterConfig.cssFilter;
+    context.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    const photoBlob = await new Promise<Blob | null>((resolve) => {
+      captureCanvas.toBlob(resolve, 'image/jpeg', 0.92);
     });
+
+    if (!photoBlob) {
+      setIsCapturingPhoto(false);
+      setCameraErrorMessage('No se pudo generar la imagen capturada.');
+      return;
+    }
+
+    const timestamp = Date.now();
+    const capturedFile = new File([photoBlob], `captura-${timestamp}.jpg`, {
+      type: 'image/jpeg',
+    });
+
+    createCameraDraftFromFile(capturedFile, selectedCameraFilterConfig.id);
+    stopLiveCameraStream();
+    setIsCapturingPhoto(false);
+  };
+
+  const handleRetryCameraCapture = async (): Promise<void> => {
+    clearCameraDraft();
+    const openedLiveCamera = await startLiveCamera();
+    if (!openedLiveCamera) {
+      cameraCaptureInputRef.current?.click();
+    }
   };
 
   const handleConfirmCameraDraftUpload = async (): Promise<void> => {
@@ -1418,7 +1667,7 @@ function DashboardPage() {
         )}
       </section>
 
-      {/* Hidden input: on mobile `capture="environment"` prioritizes rear camera, with gallery fallback. */}
+      {/* Native fallback input: rear camera preference on mobile. */}
       <input
         ref={cameraCaptureInputRef}
         className="camera-capture-input"
@@ -1429,25 +1678,114 @@ function DashboardPage() {
         disabled={isUploading || !selectedSection}
       />
 
-      {/* Local preview before upload; this is the extension point for future image filters. */}
-      {cameraDraft && (
-        <section className="camera-preview-panel" aria-label="Vista previa de camara">
-          <div className="camera-preview-head">
-            <h3>Vista previa</h3>
-            <p>Lista para filtros y guardado en tu galeria.</p>
-          </div>
-          <div className="camera-preview-stage">
-            <img src={cameraDraft.previewUrl} alt="Vista previa capturada" />
-          </div>
-          <div className="camera-preview-actions">
+      {/* Gallery fallback input when camera is not available. */}
+      <input
+        ref={galleryPickerInputRef}
+        className="camera-capture-input"
+        type="file"
+        accept="image/*"
+        onChange={handleGalleryPickerChange}
+        disabled={isUploading || !selectedSection}
+      />
+
+      {isCameraLiveOpen && (
+        <div className="camera-live-overlay" role="dialog" aria-modal="true" aria-label="Camara">
+          <video
+            ref={cameraVideoRef}
+            className="camera-live-video"
+            autoPlay
+            playsInline
+            muted
+            style={{ filter: selectedCameraFilterConfig.cssFilter }}
+          />
+
+          <div className="camera-live-top">
             <button
               type="button"
               className="secondary-btn"
-              onClick={clearCameraDraft}
+              onClick={stopLiveCameraStream}
+              disabled={isCapturingPhoto}
+            >
+              Cerrar
+            </button>
+          </div>
+
+          <div className="camera-filter-row" role="group" aria-label="Filtros de camara">
+            {cameraFilterOptions.map((filterOption) => (
+              <button
+                key={filterOption.id}
+                type="button"
+                className={
+                  filterOption.id === selectedCameraFilter
+                    ? 'camera-filter-btn active'
+                    : 'camera-filter-btn'
+                }
+                onClick={() => setSelectedCameraFilter(filterOption.id)}
+                disabled={isCapturingPhoto}
+              >
+                {filterOption.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="camera-live-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={handleOpenGalleryPicker}
+              disabled={isCapturingPhoto}
+            >
+              Galeria
+            </button>
+
+            <button
+              type="button"
+              className="camera-shutter-btn"
+              onClick={() => {
+                void handleCapturePhotoFromLiveCamera();
+              }}
+              disabled={isCapturingPhoto || isCameraStarting}
+              aria-label="Tomar foto"
+            >
+              <span />
+            </button>
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => cameraCaptureInputRef.current?.click()}
+              disabled={isCapturingPhoto}
+            >
+              Camara nativa
+            </button>
+          </div>
+
+          {cameraErrorMessage && <p className="camera-live-notice">{cameraErrorMessage}</p>}
+        </div>
+      )}
+
+      {cameraDraft && (
+        <section className="camera-canvas-overlay" aria-label="Vista previa de camara en canvas">
+          <canvas ref={cameraCanvasRef} className="camera-fullscreen-canvas" />
+
+          <div className="camera-canvas-head">
+            <span className="camera-filter-pill">
+              Filtro: {cameraFilterOptions.find((item) => item.id === cameraDraft.filterPreset)?.label ?? 'Normal'}
+            </span>
+          </div>
+
+          <div className="camera-canvas-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => {
+                void handleRetryCameraCapture();
+              }}
               disabled={isUploading}
             >
-              Descartar
+              Repetir
             </button>
+
             <button
               type="button"
               className="primary-btn"
@@ -1458,6 +1796,15 @@ function DashboardPage() {
             >
               {isUploading ? 'Guardando...' : 'Guardar en galeria'}
             </button>
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={clearCameraDraft}
+              disabled={isUploading}
+            >
+              Cerrar
+            </button>
           </div>
         </section>
       )}
@@ -1465,7 +1812,9 @@ function DashboardPage() {
       <button
         type="button"
         className="camera-fab"
-        onClick={handleOpenCameraCapture}
+        onClick={() => {
+          void handleOpenCameraCapture();
+        }}
         disabled={isUploading || !selectedSection}
         aria-label="Abrir camara o galeria"
       >

@@ -1,0 +1,36 @@
+Cambios solicitados (camara)
+- El canvas de la imagen capturada ahora ocupa toda la pantalla.
+- Antes de capturar hay filtros seleccionables con botones visibles.
+- Se mantiene el boton flotante de camara y se conserva fallback nativo/galeria.
+
+Implementacion realizada
+1) Vista de camara full-screen
+- Se agrego un overlay de camara en pantalla completa usando `getUserMedia`.
+- El video en vivo ocupa todo el viewport.
+- Se agregaron acciones: cerrar, abrir galeria, camara nativa y disparador de captura.
+
+2) Filtros antes de sacar la foto
+- Se incorporo una barra horizontal de filtros:
+  - Normal
+  - Vivo
+  - B/N
+  - Calido
+  - Frio
+- El filtro seleccionado se aplica al preview de video y tambien a la captura final.
+
+3) Captura a canvas full-screen
+- Al capturar, la imagen pasa a un overlay con `canvas` a pantalla completa.
+- El canvas renderiza la imagen en modo "cover" para ocupar toda la pantalla.
+- Acciones disponibles: Repetir, Guardar en galeria, Cerrar.
+
+4) Compatibilidad y fallback
+- Si no se puede abrir la camara avanzada, se usa input nativo con `capture="environment"`.
+- Se mantiene un input adicional de galeria para fallback explicito.
+
+5) Preparado para futura extension (filtros tipo Instagram)
+- El estado `cameraDraft` conserva `filterPreset`.
+- La estructura deja listo el punto de extension para pipeline de filtros adicionales.
+
+Archivos tocados
+- frontend/src/pages/DashboardPage.tsx
+- frontend/src/index.css

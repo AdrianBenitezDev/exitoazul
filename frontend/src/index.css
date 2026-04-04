@@ -506,54 +506,164 @@ code {
   transform: translateY(-50%) translateX(0);
 }
 
-.camera-preview-panel {
+.camera-live-overlay {
   position: fixed;
-  right: clamp(0.85rem, 2.2vw, 1.45rem);
-  bottom: calc(clamp(1rem, 2.7vw, 1.6rem) + 74px);
-  width: min(88vw, 320px);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.2);
-  padding: 0.72rem;
-  display: grid;
-  gap: 0.62rem;
-  z-index: 54;
-}
-
-.camera-preview-head {
-  display: grid;
-  gap: 0.24rem;
-}
-
-.camera-preview-head h3 {
-  font-size: 0.95rem;
-}
-
-.camera-preview-head p {
-  font-size: 0.79rem;
-  color: var(--ink-soft);
-}
-
-.camera-preview-stage {
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  inset: 0;
+  background: #030712;
+  z-index: 82;
   overflow: hidden;
-  background: #0b1220;
 }
 
-.camera-preview-stage img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
+.camera-live-video {
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
   display: block;
 }
 
-.camera-preview-actions {
+.camera-live-top {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 3;
+}
+
+.camera-live-actions {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(95vw, 520px);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.8rem;
+  z-index: 3;
+}
+
+.camera-live-actions .secondary-btn {
+  justify-content: center;
+}
+
+.camera-shutter-btn {
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: rgba(15, 23, 42, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.camera-shutter-btn span {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.camera-shutter-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.camera-shutter-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.camera-filter-row {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6.2rem;
+  width: min(96vw, 620px);
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.45rem 0.2rem;
+  z-index: 3;
+}
+
+.camera-filter-btn {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.52);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 0.36rem 0.62rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.camera-filter-btn.active {
+  background: rgba(11, 94, 215, 0.92);
+  border-color: #93c5fd;
+}
+
+.camera-live-notice {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0.95rem;
+  width: min(92vw, 520px);
+  color: #fef3c7;
+  background: rgba(120, 53, 15, 0.74);
+  border: 1px solid rgba(217, 119, 6, 0.65);
+  border-radius: 10px;
+  padding: 0.36rem 0.56rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+  z-index: 2;
+}
+
+.camera-canvas-overlay {
+  position: fixed;
+  inset: 0;
+  background: #020617;
+  z-index: 83;
+  overflow: hidden;
+}
+
+.camera-fullscreen-canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+.camera-canvas-head {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 2;
+}
+
+.camera-filter-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(147, 197, 253, 0.6);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  padding: 0.24rem 0.55rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.camera-canvas-actions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1rem;
+  width: min(95vw, 540px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  z-index: 2;
 }
 
 .panel-head p {
@@ -1435,10 +1545,29 @@ code {
     bottom: 0.78rem;
   }
 
-  .camera-preview-panel {
-    right: 0.72rem;
-    bottom: calc(0.78rem + 66px);
-    width: min(92vw, 300px);
+  .camera-live-actions {
+    width: min(98vw, 500px);
+    gap: 0.6rem;
+  }
+
+  .camera-shutter-btn {
+    width: 66px;
+    height: 66px;
+  }
+
+  .camera-shutter-btn span {
+    width: 50px;
+    height: 50px;
+  }
+
+  .camera-filter-row {
+    width: 98vw;
+    bottom: 5.65rem;
+  }
+
+  .camera-canvas-actions {
+    width: 97vw;
+    grid-template-columns: 1fr;
   }
 
   .status-grid {
