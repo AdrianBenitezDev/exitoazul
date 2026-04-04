@@ -93,6 +93,37 @@ const canShareFiles = (files: File[]): boolean => {
   }
 };
 
+const copyTextByExecCommand = (value: string): boolean => {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
+};
+
+const writeTextToClipboard = async (value: string): Promise<boolean> => {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      return copyTextByExecCommand(value);
+    }
+  }
+
+  return copyTextByExecCommand(value);
+};
+
 const shareLinkByClient = async (url: string): Promise<void> => {
   const text = 'Galeria privada de Exito Azul';
 
@@ -105,8 +136,7 @@ const shareLinkByClient = async (url: string): Promise<void> => {
     return;
   }
 
-  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-    await navigator.clipboard.writeText(url);
+  if (await writeTextToClipboard(url)) {
     return;
   }
 
@@ -231,12 +261,11 @@ export const shareTemporaryLinks = async (links: ShareLinkResult[]): Promise<voi
     return;
   }
 
-  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-    await navigator.clipboard.writeText(text);
+  if (await writeTextToClipboard(text)) {
     return;
   }
 
-  window.open(urls[0], '_blank', 'noopener,noreferrer');
+  throw new Error('No hay un metodo disponible para compartir multiples links en este dispositivo.');
 };
 
 export const shareFilesDirect = async (params: {
