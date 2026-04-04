@@ -1,0 +1,92 @@
+Catalogo de filtros sugeridos para camara (seleccion de usuario)
+
+1) Basicos
+- Normal
+- Vivo (saturate + contrast)
+- B/N (grayscale + contrast)
+- Calido (sepia + leve hue-rotate)
+- Frio (hue-rotate azul + saturacion)
+- Suave (bajo contraste + brillo leve)
+- Alto contraste
+- Brillante
+- Oscuro cinematografico
+- Mate (contraste bajo + saturacion moderada)
+
+2) Estilo Instagram clasico
+- Clarendon (contraste + saturacion + tono frio)
+- Gingham (look lavado, brillo suave)
+- Moon (b/n suave)
+- Lark (ligero, luminoso)
+- Reyes (desaturado elegante)
+- Juno (intenso y calido)
+- Slumber (pastel tenue)
+- Crema (look cremoso y calido)
+- Ludwig (calido con negros controlados)
+- Aden (pastel rosado)
+- Perpetua (frio luminoso)
+- Amaro (brillo y poco contraste)
+
+3) Vintage / Film
+- Sepia clasico
+- Retro film
+- Polaroid
+- Kodak warm
+- Fuji cool
+- Fade analogico
+- Grano fino (film grain)
+- Grano fuerte
+- Fuga de luz (light leak)
+- Halacion suave
+
+4) Dramaticos y artisticos
+- Noir (b/n profundo)
+- Cyanotype
+- Duotono azul
+- Duotono magenta
+- Neon pop
+- Cyberpunk
+- Teal & Orange
+- HDR falso
+- Glow suave
+- Glow fuerte
+
+5) Correctivos y utilitarios
+- Auto contraste
+- Auto color
+- Balance de blancos calido
+- Balance de blancos frio
+- Nitidez suave
+- Nitidez alta
+- Reduccion de ruido ligera
+- Reduccion de ruido fuerte
+- Exposicion +1
+- Exposicion -1
+
+6) Para retrato
+- Piel natural
+- Piel calida
+- Soft skin
+- Beauty leve
+- Beauty media
+- Fondo menos saturado
+- Claridad de ojos
+- Retrato dramatizado
+
+7) Para producto/comercio
+- Blanco limpio
+- Fondo neutro
+- Saturacion realzada
+- Detalle textura
+- Macro nitido
+- Contraste comercial
+
+Sugerencia tecnica para el proyecto
+- Mantener ids cortos de filtro (ej: none, vivid, mono, warm, cool, noir, clarendon).
+- Guardar en config central por filtro:
+  - id
+  - label
+  - cssFilter (preview rapido)
+  - shader/pipeline (futuro)
+  - parametros editables (intensidad 0-100)
+- Permitir intensidad por slider para no multiplicar botones.
+- En una fase avanzada, migrar de CSS filter a WebGL/WebGPU para filtros complejos.

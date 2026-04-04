@@ -42,6 +42,7 @@ type PendingUploadCard = {
 };
 
 type CameraFilterId = 'none' | 'vivid' | 'mono' | 'warm' | 'cool';
+type CameraFacingMode = 'environment' | 'user';
 
 type CameraDraft = {
   file: File;
@@ -173,6 +174,28 @@ function CameraIcon() {
   );
 }
 
+function SwitchCameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M8.2 7.2h7.6l-1.4-1.5M15.8 16.8H8.2l1.4 1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.2 10.3V8.6c0-.8.7-1.4 1.4-1.4h8.8c.8 0 1.4.7 1.4 1.4v1.7M17.8 13.7v1.7c0 .8-.7 1.4-1.4 1.4H7.6c-.8 0-1.4-.7-1.4-1.4v-1.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -215,6 +238,7 @@ function DashboardPage() {
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
   const [cameraDraft, setCameraDraft] = useState<CameraDraft | null>(null);
   const [selectedCameraFilter, setSelectedCameraFilter] = useState<CameraFilterId>('none');
+  const [cameraFacingMode, setCameraFacingMode] = useState<CameraFacingMode>('environment');
   const [isCameraLiveOpen, setIsCameraLiveOpen] = useState<boolean>(false);
   const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
   const [isCapturingPhoto, setIsCapturingPhoto] = useState<boolean>(false);
@@ -613,7 +637,7 @@ function DashboardPage() {
     };
   }, [cameraDraft?.previewUrl]);
 
-  const stopLiveCameraStream = useCallback((): void => {
+  const releaseLiveCameraTracks = useCallback((): void => {
     const activeStream = cameraStreamRef.current;
     if (activeStream) {
       activeStream.getTracks().forEach((track) => {
@@ -621,6 +645,10 @@ function DashboardPage() {
       });
       cameraStreamRef.current = null;
     }
+  }, []);
+
+  const stopLiveCameraStream = useCallback((): void => {
+    releaseLiveCameraTracks();
 
     if (cameraVideoRef.current) {
       cameraVideoRef.current.srcObject = null;
@@ -629,7 +657,7 @@ function DashboardPage() {
     setIsCameraLiveOpen(false);
     setIsCameraStarting(false);
     setIsCapturingPhoto(false);
-  }, []);
+  }, [releaseLiveCameraTracks]);
 
   useEffect(() => {
     return () => {
@@ -727,7 +755,7 @@ function DashboardPage() {
     };
   }, [cameraDraft, drawDraftIntoCanvas]);
 
-  const startLiveCamera = useCallback(async (): Promise<boolean> => {
+  const startLiveCamera = useCallback(async (facingMode: CameraFacingMode): Promise<boolean> => {
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
       return false;
     }
@@ -735,17 +763,19 @@ function DashboardPage() {
     try {
       setIsCameraStarting(true);
       setCameraErrorMessage('');
+      releaseLiveCameraTracks();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: {
-            ideal: 'environment',
+            ideal: facingMode,
           },
         },
         audio: false,
       });
 
       cameraStreamRef.current = stream;
+      setCameraFacingMode(facingMode);
       setIsCameraLiveOpen(true);
       setIsCameraStarting(false);
       return true;
@@ -753,7 +783,7 @@ function DashboardPage() {
       setIsCameraStarting(false);
       return false;
     }
-  }, []);
+  }, [releaseLiveCameraTracks]);
 
   useEffect(() => {
     if (!isCameraLiveOpen || !cameraVideoRef.current || !cameraStreamRef.current) {
@@ -895,7 +925,7 @@ function DashboardPage() {
       return;
     }
 
-    const openedLiveCamera = await startLiveCamera();
+    const openedLiveCamera = await startLiveCamera(cameraFacingMode);
     if (openedLiveCamera) {
       return;
     }
@@ -936,6 +966,20 @@ function DashboardPage() {
 
     stopLiveCameraStream();
     createCameraDraftFromFile(selectedFile, 'none');
+  };
+
+  const handleToggleCameraFacing = async (): Promise<void> => {
+    if (isCameraStarting || isCapturingPhoto) {
+      return;
+    }
+
+    const nextFacingMode: CameraFacingMode =
+      cameraFacingMode === 'environment' ? 'user' : 'environment';
+    const switched = await startLiveCamera(nextFacingMode);
+
+    if (!switched) {
+      setCameraErrorMessage('No se pudo alternar la camara en este dispositivo.');
+    }
   };
 
   const handleCapturePhotoFromLiveCamera = async (): Promise<void> => {
@@ -987,7 +1031,7 @@ function DashboardPage() {
 
   const handleRetryCameraCapture = async (): Promise<void> => {
     clearCameraDraft();
-    const openedLiveCamera = await startLiveCamera();
+    const openedLiveCamera = await startLiveCamera(cameraFacingMode);
     if (!openedLiveCamera) {
       cameraCaptureInputRef.current?.click();
     }
@@ -1752,11 +1796,14 @@ function DashboardPage() {
 
             <button
               type="button"
-              className="secondary-btn"
-              onClick={() => cameraCaptureInputRef.current?.click()}
-              disabled={isCapturingPhoto}
+              className="camera-switch-btn"
+              onClick={() => {
+                void handleToggleCameraFacing();
+              }}
+              disabled={isCapturingPhoto || isCameraStarting}
+              aria-label="Alternar camara frontal y principal"
             >
-              Camara nativa
+              <SwitchCameraIcon />
             </button>
           </div>
 
