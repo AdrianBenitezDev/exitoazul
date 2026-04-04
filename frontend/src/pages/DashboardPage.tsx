@@ -41,64 +41,36 @@ type PendingUploadCard = {
   fileName: string;
 };
 
-type CameraFilterId =
-  | 'none'
-  | 'insta'
-  | 'vivid'
-  | 'mono'
-  | 'warm'
-  | 'cool'
-  | 'soft'
-  | 'highContrast'
-  | 'bright'
-  | 'cinematicDark'
-  | 'matte'
-  | 'clarendon'
-  | 'gingham'
-  | 'moon'
-  | 'lark'
-  | 'reyes'
-  | 'juno'
-  | 'slumber'
-  | 'crema'
-  | 'ludwig'
-  | 'aden'
-  | 'perpetua'
-  | 'amaro'
-  | 'sepiaClassic'
-  | 'retroFilm'
-  | 'polaroid'
-  | 'kodakWarm'
-  | 'fujiCool'
-  | 'analogFade'
-  | 'noir'
-  | 'cyanotype'
-  | 'duotoneBlue'
-  | 'duotoneMagenta'
-  | 'neonPop'
-  | 'cyberpunk'
-  | 'tealOrange'
-  | 'glowSoft'
-  | 'glowStrong'
-  | 'autoContrast'
-  | 'autoColor'
-  | 'wbWarm'
-  | 'wbCool'
-  | 'exposurePlus'
-  | 'exposureMinus'
-  | 'skinNatural'
-  | 'skinWarm'
-  | 'beautySoft'
-  | 'whiteClean'
-  | 'textureDetail';
-type CameraFacingMode = 'environment' | 'user';
+type JeelizFilterMode = 'none' | 'basic';
 
-type CameraDraft = {
-  file: File;
-  previewUrl: string;
-  // Extension point for future Instagram-like pipeline.
-  filterPreset: CameraFilterId;
+type JeelizDetectState = {
+  detected: number;
+  x: number;
+  y: number;
+  s: number;
+  ry?: number;
 };
+
+type JeelizFaceFilterInitSpec = {
+  canvasId: string;
+  NNCPath: string;
+  maxFacesDetected?: number;
+  callbackReady: (errorCode: number, spec?: unknown) => void;
+  callbackTrack: (detectState: JeelizDetectState) => void;
+};
+
+type JeelizFaceFilterApi = {
+  init: (spec: JeelizFaceFilterInitSpec) => void;
+  destroy?: () => void;
+  toggle_pause?: (isPause: boolean, isShutOffVideo?: boolean) => void;
+  resize?: () => void;
+};
+
+declare global {
+  interface Window {
+    JEELIZFACEFILTER?: JeelizFaceFilterApi;
+  }
+}
 
 const formatDateTime = (date: Date): string =>
   new Intl.DateTimeFormat('es-AR', {
@@ -106,58 +78,125 @@ const formatDateTime = (date: Date): string =>
     timeStyle: 'short',
   }).format(date);
 
-const cameraFilterOptions: Array<{ id: CameraFilterId; label: string; cssFilter: string }> = [
-  { id: 'none', label: 'Normal', cssFilter: 'none' },
-  // "Insta": look belleza/calido aproximado con CSS filter.
-  { id: 'insta', label: 'Insta', cssFilter: 'brightness(1.06) contrast(1.08) saturate(1.2) sepia(0.08) hue-rotate(-6deg)' },
-  { id: 'vivid', label: 'Vivo', cssFilter: 'saturate(1.25) contrast(1.08)' },
-  { id: 'mono', label: 'B/N', cssFilter: 'grayscale(1) contrast(1.05)' },
-  { id: 'warm', label: 'Calido', cssFilter: 'sepia(0.24) saturate(1.2) hue-rotate(-12deg)' },
-  { id: 'cool', label: 'Frio', cssFilter: 'saturate(1.08) hue-rotate(16deg) brightness(1.02)' },
-  { id: 'soft', label: 'Suave', cssFilter: 'contrast(0.9) brightness(1.06) saturate(0.94)' },
-  { id: 'highContrast', label: 'Alto contraste', cssFilter: 'contrast(1.35) saturate(1.08)' },
-  { id: 'bright', label: 'Brillante', cssFilter: 'brightness(1.15) saturate(1.06)' },
-  { id: 'cinematicDark', label: 'Oscuro cine', cssFilter: 'brightness(0.82) contrast(1.2) saturate(0.9)' },
-  { id: 'matte', label: 'Mate', cssFilter: 'contrast(0.88) saturate(0.92) brightness(1.02)' },
-  { id: 'clarendon', label: 'Clarendon', cssFilter: 'contrast(1.12) saturate(1.24) hue-rotate(8deg)' },
-  { id: 'gingham', label: 'Gingham', cssFilter: 'brightness(1.06) contrast(0.92) saturate(0.86)' },
-  { id: 'moon', label: 'Moon', cssFilter: 'grayscale(1) contrast(1.15) brightness(1.02)' },
-  { id: 'lark', label: 'Lark', cssFilter: 'brightness(1.11) contrast(0.97) saturate(1.06)' },
-  { id: 'reyes', label: 'Reyes', cssFilter: 'saturate(0.82) brightness(1.08) contrast(0.93)' },
-  { id: 'juno', label: 'Juno', cssFilter: 'saturate(1.3) contrast(1.14) hue-rotate(-6deg)' },
-  { id: 'slumber', label: 'Slumber', cssFilter: 'saturate(0.86) contrast(0.94) brightness(1.05)' },
-  { id: 'crema', label: 'Crema', cssFilter: 'sepia(0.18) saturate(1.04) brightness(1.07)' },
-  { id: 'ludwig', label: 'Ludwig', cssFilter: 'contrast(1.12) brightness(1.03) sepia(0.14)' },
-  { id: 'aden', label: 'Aden', cssFilter: 'hue-rotate(-14deg) saturate(0.82) brightness(1.08)' },
-  { id: 'perpetua', label: 'Perpetua', cssFilter: 'hue-rotate(18deg) brightness(1.08) contrast(1.02)' },
-  { id: 'amaro', label: 'Amaro', cssFilter: 'brightness(1.14) contrast(0.96) saturate(1.08)' },
-  { id: 'sepiaClassic', label: 'Sepia clasico', cssFilter: 'sepia(0.66) contrast(1.03) brightness(0.95)' },
-  { id: 'retroFilm', label: 'Retro film', cssFilter: 'sepia(0.34) saturate(0.94) contrast(1.07) brightness(0.96)' },
-  { id: 'polaroid', label: 'Polaroid', cssFilter: 'contrast(0.98) saturate(1.1) brightness(1.1) sepia(0.12)' },
-  { id: 'kodakWarm', label: 'Kodak warm', cssFilter: 'sepia(0.24) saturate(1.18) contrast(1.06)' },
-  { id: 'fujiCool', label: 'Fuji cool', cssFilter: 'hue-rotate(12deg) saturate(1.04) contrast(1.08)' },
-  { id: 'analogFade', label: 'Fade analogico', cssFilter: 'contrast(0.86) saturate(0.88) brightness(1.05)' },
-  { id: 'noir', label: 'Noir', cssFilter: 'grayscale(1) contrast(1.36) brightness(0.9)' },
-  { id: 'cyanotype', label: 'Cyanotype', cssFilter: 'grayscale(0.4) hue-rotate(165deg) contrast(1.15) saturate(1.2)' },
-  { id: 'duotoneBlue', label: 'Duotono azul', cssFilter: 'grayscale(0.55) hue-rotate(155deg) saturate(1.34) contrast(1.12)' },
-  { id: 'duotoneMagenta', label: 'Duotono magenta', cssFilter: 'grayscale(0.45) hue-rotate(290deg) saturate(1.42) contrast(1.08)' },
-  { id: 'neonPop', label: 'Neon pop', cssFilter: 'saturate(1.5) contrast(1.24) hue-rotate(8deg)' },
-  { id: 'cyberpunk', label: 'Cyberpunk', cssFilter: 'saturate(1.45) contrast(1.28) hue-rotate(40deg) brightness(0.95)' },
-  { id: 'tealOrange', label: 'Teal & Orange', cssFilter: 'contrast(1.15) saturate(1.26) hue-rotate(-8deg)' },
-  { id: 'glowSoft', label: 'Glow suave', cssFilter: 'brightness(1.12) contrast(0.96) saturate(1.05)' },
-  { id: 'glowStrong', label: 'Glow fuerte', cssFilter: 'brightness(1.2) contrast(0.9) saturate(1.12)' },
-  { id: 'autoContrast', label: 'Auto contraste', cssFilter: 'contrast(1.16) brightness(1.02)' },
-  { id: 'autoColor', label: 'Auto color', cssFilter: 'saturate(1.14) contrast(1.04)' },
-  { id: 'wbWarm', label: 'WB calido', cssFilter: 'hue-rotate(-9deg) saturate(1.05) brightness(1.02)' },
-  { id: 'wbCool', label: 'WB frio', cssFilter: 'hue-rotate(10deg) saturate(1.03) brightness(1.02)' },
-  { id: 'exposurePlus', label: 'Exposicion +1', cssFilter: 'brightness(1.12) contrast(0.98)' },
-  { id: 'exposureMinus', label: 'Exposicion -1', cssFilter: 'brightness(0.88) contrast(1.04)' },
-  { id: 'skinNatural', label: 'Piel natural', cssFilter: 'saturate(1.04) contrast(0.98) brightness(1.03)' },
-  { id: 'skinWarm', label: 'Piel calida', cssFilter: 'sepia(0.14) hue-rotate(-8deg) saturate(1.08)' },
-  { id: 'beautySoft', label: 'Beauty leve', cssFilter: 'brightness(1.08) contrast(0.92) saturate(1.02)' },
-  { id: 'whiteClean', label: 'Blanco limpio', cssFilter: 'brightness(1.14) contrast(1.06) saturate(0.98)' },
-  { id: 'textureDetail', label: 'Detalle textura', cssFilter: 'contrast(1.26) saturate(1.03) brightness(0.98)' },
-];
+const JEELIZ_SCRIPT_SRC = 'https://appstatic.jeeliz.com/faceFilter/jeelizFaceFilter.js';
+const JEELIZ_NNC_PATH = 'https://appstatic.jeeliz.com/faceFilter/';
+const JEELIZ_CANVAS_ID = 'jeelizFaceFilterCanvas';
+const JEELIZ_DETECTION_THRESHOLD = 0.62;
+
+let jeelizScriptPromise: Promise<JeelizFaceFilterApi> | null = null;
+
+const loadJeelizFaceFilter = (): Promise<JeelizFaceFilterApi> => {
+  if (window.JEELIZFACEFILTER) {
+    return Promise.resolve(window.JEELIZFACEFILTER);
+  }
+
+  if (jeelizScriptPromise) {
+    return jeelizScriptPromise;
+  }
+
+  jeelizScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(
+      'script[data-jeeliz-facefilter="true"]',
+    ) as HTMLScriptElement | null;
+
+    const resolveIfReady = (): void => {
+      if (window.JEELIZFACEFILTER) {
+        resolve(window.JEELIZFACEFILTER);
+      } else {
+        reject(new Error('Jeeliz cargo sin API disponible.'));
+      }
+    };
+
+    if (existingScript) {
+      existingScript.addEventListener('load', resolveIfReady, { once: true });
+      existingScript.addEventListener(
+        'error',
+        () => reject(new Error('No se pudo cargar Jeeliz FaceFilter.')),
+        { once: true },
+      );
+      return;
+    }
+
+    const scriptElement = document.createElement('script');
+    scriptElement.src = JEELIZ_SCRIPT_SRC;
+    scriptElement.async = true;
+    scriptElement.dataset.jeelizFacefilter = 'true';
+    scriptElement.onload = resolveIfReady;
+    scriptElement.onerror = () => reject(new Error('No se pudo cargar Jeeliz FaceFilter.'));
+    document.head.appendChild(scriptElement);
+  });
+
+  return jeelizScriptPromise;
+};
+
+const drawBasicJeelizOverlay = (
+  context: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  detectState: JeelizDetectState | null,
+): void => {
+  if (!detectState || detectState.detected < JEELIZ_DETECTION_THRESHOLD) {
+    return;
+  }
+
+  const centerX = (0.5 + detectState.x * 0.5) * canvasWidth;
+  const centerY = (0.5 - detectState.y * 0.5) * canvasHeight;
+  const faceBaseSize = detectState.s * canvasWidth;
+  const faceRadiusX = Math.max(46, faceBaseSize * 0.5);
+  const faceRadiusY = Math.max(62, faceBaseSize * 0.65);
+
+  context.save();
+
+  const skinGlowGradient = context.createRadialGradient(
+    centerX,
+    centerY - faceRadiusY * 0.22,
+    faceRadiusX * 0.1,
+    centerX,
+    centerY,
+    faceRadiusX * 1.14,
+  );
+  skinGlowGradient.addColorStop(0, 'rgba(255, 235, 240, 0.20)');
+  skinGlowGradient.addColorStop(1, 'rgba(255, 235, 240, 0.0)');
+  context.fillStyle = skinGlowGradient;
+  context.beginPath();
+  context.ellipse(centerX, centerY, faceRadiusX * 1.02, faceRadiusY, 0, 0, Math.PI * 2);
+  context.fill();
+
+  const cheekOffsetX = faceRadiusX * 0.58;
+  const cheekY = centerY + faceRadiusY * 0.07;
+  const blushRadius = faceRadiusX * 0.34;
+  const blushLeft = context.createRadialGradient(
+    centerX - cheekOffsetX,
+    cheekY,
+    blushRadius * 0.14,
+    centerX - cheekOffsetX,
+    cheekY,
+    blushRadius,
+  );
+  blushLeft.addColorStop(0, 'rgba(255, 133, 177, 0.24)');
+  blushLeft.addColorStop(1, 'rgba(255, 133, 177, 0)');
+  context.fillStyle = blushLeft;
+  context.beginPath();
+  context.ellipse(centerX - cheekOffsetX, cheekY, blushRadius, blushRadius * 0.82, 0, 0, Math.PI * 2);
+  context.fill();
+
+  const blushRight = context.createRadialGradient(
+    centerX + cheekOffsetX,
+    cheekY,
+    blushRadius * 0.14,
+    centerX + cheekOffsetX,
+    cheekY,
+    blushRadius,
+  );
+  blushRight.addColorStop(0, 'rgba(255, 133, 177, 0.24)');
+  blushRight.addColorStop(1, 'rgba(255, 133, 177, 0)');
+  context.fillStyle = blushRight;
+  context.beginPath();
+  context.ellipse(centerX + cheekOffsetX, cheekY, blushRadius, blushRadius * 0.82, 0, 0, Math.PI * 2);
+  context.fill();
+
+  context.restore();
+};
 
 const buildSourceFileFromUrl = async (
   imageUrl: string,
@@ -268,28 +307,6 @@ function CameraIcon() {
   );
 }
 
-function SwitchCameraIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M8.2 7.2h7.6l-1.4-1.5M15.8 16.8H8.2l1.4 1.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M6.2 10.3V8.6c0-.8.7-1.4 1.4-1.4h8.8c.8 0 1.4.7 1.4 1.4v1.7M17.8 13.7v1.7c0 .8-.7 1.4-1.4 1.4H7.6c-.8 0-1.4-.7-1.4-1.4v-1.7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -330,21 +347,17 @@ function DashboardPage() {
   const [pendingSectionName, setPendingSectionName] = useState<string | null>(null);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
-  const [cameraDraft, setCameraDraft] = useState<CameraDraft | null>(null);
-  const [selectedCameraFilter, setSelectedCameraFilter] = useState<CameraFilterId>('none');
-  const [cameraFacingMode, setCameraFacingMode] = useState<CameraFacingMode>('environment');
+  const [cameraFilterMode, setCameraFilterMode] = useState<JeelizFilterMode>('basic');
   const [isCameraLiveOpen, setIsCameraLiveOpen] = useState<boolean>(false);
   const [isCameraStarting, setIsCameraStarting] = useState<boolean>(false);
   const [isCapturingPhoto, setIsCapturingPhoto] = useState<boolean>(false);
+  const [isFaceTracked, setIsFaceTracked] = useState<boolean>(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState<string>('');
-  const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryPickerInputRef = useRef<HTMLInputElement | null>(null);
-  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
-  const cameraCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
-  const cameraDeviceIdsRef = useRef<string[]>([]);
-  const activeCameraDeviceIdRef = useRef<string | null>(null);
-  const cameraStartRequestIdRef = useRef<number>(0);
+  const jeelizCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const jeelizMaskRef = useRef<HTMLDivElement | null>(null);
+  const jeelizDetectStateRef = useRef<JeelizDetectState | null>(null);
+  const cameraFilterModeRef = useRef<JeelizFilterMode>('basic');
+  const isFaceTrackedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -701,303 +714,178 @@ function DashboardPage() {
     void handleCreateSection();
   };
 
-  const selectedCameraFilterConfig = useMemo(
-    () =>
-      cameraFilterOptions.find((filterOption) => filterOption.id === selectedCameraFilter) ??
-      cameraFilterOptions[0],
-    [selectedCameraFilter],
-  );
-
-  const clearCameraDraft = useCallback((): void => {
-    setCameraDraft((current) => {
-      if (current?.previewUrl) {
-        URL.revokeObjectURL(current.previewUrl);
-      }
-
-      return null;
-    });
-
-    if (cameraCaptureInputRef.current) {
-      cameraCaptureInputRef.current.value = '';
+  const hideJeelizMask = useCallback((): void => {
+    if (!jeelizMaskRef.current) {
+      return;
     }
 
-    if (galleryPickerInputRef.current) {
-      galleryPickerInputRef.current.value = '';
-    }
+    jeelizMaskRef.current.style.opacity = '0';
+    jeelizMaskRef.current.style.transform = 'translate(-50%, -50%) scale(0.95)';
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (cameraDraft?.previewUrl) {
-        URL.revokeObjectURL(cameraDraft.previewUrl);
+    cameraFilterModeRef.current = cameraFilterMode;
+    if (cameraFilterMode === 'none') {
+      hideJeelizMask();
+    }
+  }, [cameraFilterMode, hideJeelizMask]);
+
+  const updateJeelizMask = useCallback(
+    (detectState: JeelizDetectState): void => {
+      const hasFace = detectState.detected >= JEELIZ_DETECTION_THRESHOLD;
+      if (hasFace !== isFaceTrackedRef.current) {
+        isFaceTrackedRef.current = hasFace;
+        setIsFaceTracked(hasFace);
       }
-    };
-  }, [cameraDraft?.previewUrl]);
 
-  const releaseLiveCameraTracks = useCallback((): void => {
-    const activeStream = cameraStreamRef.current;
-    if (activeStream) {
-      activeStream.getTracks().forEach((track) => {
-        track.stop();
-      });
-      cameraStreamRef.current = null;
-    }
-  }, []);
+      jeelizDetectStateRef.current = hasFace ? detectState : null;
 
-  const stopLiveCameraStream = useCallback((): void => {
-    cameraStartRequestIdRef.current += 1;
-    releaseLiveCameraTracks();
-
-    if (cameraVideoRef.current) {
-      cameraVideoRef.current.srcObject = null;
-    }
-
-    setIsCameraLiveOpen(false);
-    setIsCameraStarting(false);
-    setIsCapturingPhoto(false);
-  }, [releaseLiveCameraTracks]);
-
-  useEffect(() => {
-    return () => {
-      stopLiveCameraStream();
-    };
-  }, [stopLiveCameraStream]);
-
-  const createCameraDraftFromFile = useCallback(
-    (capturedFile: File, filterPreset: CameraFilterId): void => {
-      if (!capturedFile.type.startsWith('image/')) {
-        setFeedback({
-          tone: 'warning',
-          message: 'Solo se permiten archivos de imagen.',
-        });
+      if (!hasFace || cameraFilterModeRef.current === 'none') {
+        hideJeelizMask();
         return;
       }
 
-      const previewUrl = URL.createObjectURL(capturedFile);
-      setCameraDraft((current) => {
-        if (current?.previewUrl) {
-          URL.revokeObjectURL(current.previewUrl);
-        }
-
-        return {
-          file: capturedFile,
-          previewUrl,
-          filterPreset,
-        };
-      });
-    },
-    [],
-  );
-
-  const drawDraftIntoCanvas = useCallback((): void => {
-    if (!cameraDraft || !cameraCanvasRef.current) {
-      return;
-    }
-
-    const canvas = cameraCanvasRef.current;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      return;
-    }
-
-    const image = new Image();
-    image.onload = () => {
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const pixelRatio = window.devicePixelRatio || 1;
-
-      canvas.width = Math.max(1, Math.floor(viewportWidth * pixelRatio));
-      canvas.height = Math.max(1, Math.floor(viewportHeight * pixelRatio));
-      canvas.style.width = `${viewportWidth}px`;
-      canvas.style.height = `${viewportHeight}px`;
-
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      context.clearRect(0, 0, viewportWidth, viewportHeight);
-
-      // Draw in "cover" mode so the captured frame fills the full-screen canvas.
-      const imageRatio = image.width / image.height;
-      const viewportRatio = viewportWidth / viewportHeight;
-      let drawWidth = viewportWidth;
-      let drawHeight = viewportHeight;
-      let drawX = 0;
-      let drawY = 0;
-
-      if (imageRatio > viewportRatio) {
-        drawHeight = viewportHeight;
-        drawWidth = viewportHeight * imageRatio;
-        drawX = (viewportWidth - drawWidth) / 2;
-      } else {
-        drawWidth = viewportWidth;
-        drawHeight = viewportWidth / imageRatio;
-        drawY = (viewportHeight - drawHeight) / 2;
+      const canvasElement = jeelizCanvasRef.current;
+      const maskElement = jeelizMaskRef.current;
+      if (!canvasElement || !maskElement) {
+        return;
       }
 
-      context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-    };
-    image.src = cameraDraft.previewUrl;
-  }, [cameraDraft]);
+      const canvasWidth = canvasElement.clientWidth;
+      const canvasHeight = canvasElement.clientHeight;
+      if (canvasWidth <= 0 || canvasHeight <= 0) {
+        return;
+      }
+
+      const centerX = (0.5 + detectState.x * 0.5) * canvasWidth;
+      const centerY = (0.5 - detectState.y * 0.5) * canvasHeight;
+      const faceSize = detectState.s * canvasWidth;
+      const maskWidth = Math.max(82, faceSize * 1.06);
+      const maskHeight = Math.max(118, faceSize * 1.34);
+      const tiltDegrees = (detectState.ry ?? 0) * -14;
+
+      maskElement.style.opacity = '1';
+      maskElement.style.width = `${maskWidth}px`;
+      maskElement.style.height = `${maskHeight}px`;
+      maskElement.style.transform = `translate(${centerX}px, ${centerY}px) translate(-50%, -50%) rotate(${tiltDegrees}deg)`;
+    },
+    [hideJeelizMask],
+  );
+
+  const stopJeelizCamera = useCallback((): void => {
+    try {
+      window.JEELIZFACEFILTER?.destroy?.();
+    } catch {
+      // Ignore destroy errors to avoid blocking UI close.
+    }
+
+    hideJeelizMask();
+    setIsCameraLiveOpen(false);
+    setIsCameraStarting(false);
+    setIsCapturingPhoto(false);
+    setIsFaceTracked(false);
+    isFaceTrackedRef.current = false;
+    jeelizDetectStateRef.current = null;
+  }, [hideJeelizMask]);
 
   useEffect(() => {
-    if (!cameraDraft) {
+    return () => {
+      stopJeelizCamera();
+    };
+  }, [stopJeelizCamera]);
+
+  useEffect(() => {
+    if (!isCameraLiveOpen) {
       return;
     }
 
-    drawDraftIntoCanvas();
     const handleResize = (): void => {
-      drawDraftIntoCanvas();
+      window.JEELIZFACEFILTER?.resize?.();
     };
 
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [cameraDraft, drawDraftIntoCanvas]);
+  }, [isCameraLiveOpen]);
 
-  const refreshVideoInputDevices = useCallback(async (): Promise<string[]> => {
-    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
-      cameraDeviceIdsRef.current = [];
-      return [];
+  const startJeelizCamera = useCallback(async (): Promise<boolean> => {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      setCameraErrorMessage('Tu navegador no soporta camara web.');
+      setFeedback({
+        tone: 'warning',
+        message: 'Tu navegador no soporta camara web.',
+      });
+      return false;
     }
+
+    if (isCameraStarting) {
+      return false;
+    }
+
+    if (isCameraLiveOpen && window.JEELIZFACEFILTER?.toggle_pause) {
+      window.JEELIZFACEFILTER.toggle_pause(false, false);
+      setCameraErrorMessage('');
+      return true;
+    }
+
+    setIsCameraStarting(true);
+    setCameraErrorMessage('');
+    setIsFaceTracked(false);
+    isFaceTrackedRef.current = false;
+    setIsCameraLiveOpen(true);
 
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputIds = devices
-        .filter((device) => device.kind === 'videoinput')
-        .map((device) => device.deviceId)
-        .filter((deviceId) => deviceId.length > 0);
-
-      cameraDeviceIdsRef.current = videoInputIds;
-      return videoInputIds;
-    } catch {
-      cameraDeviceIdsRef.current = [];
-      return [];
-    }
-  }, []);
-
-  const startLiveCamera = useCallback(
-    async (facingMode: CameraFacingMode, preferredDeviceId?: string): Promise<boolean> => {
-      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-        return false;
-      }
-
-      const requestId = cameraStartRequestIdRef.current + 1;
-      cameraStartRequestIdRef.current = requestId;
-
+      const jeelizApi = await loadJeelizFaceFilter();
       try {
-        setIsCameraStarting(true);
-        setCameraErrorMessage('');
-        releaseLiveCameraTracks();
-
-        const videoConstraintCandidates: Array<MediaTrackConstraints | boolean> = [];
-        if (preferredDeviceId) {
-          videoConstraintCandidates.push({
-            deviceId: {
-              exact: preferredDeviceId,
-            },
-          });
-        }
-        videoConstraintCandidates.push({
-          facingMode: {
-            exact: facingMode,
-          },
-        });
-        videoConstraintCandidates.push({
-          facingMode: {
-            ideal: facingMode,
-          },
-        });
-        videoConstraintCandidates.push(true);
-
-        let stream: MediaStream | null = null;
-        for (const videoConstraints of videoConstraintCandidates) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: videoConstraints,
-              audio: false,
-            });
-            break;
-          } catch {
-            stream = null;
-          }
-        }
-
-        if (!stream) {
-          setIsCameraStarting(false);
-          return false;
-        }
-
-        if (requestId !== cameraStartRequestIdRef.current) {
-          stream.getTracks().forEach((track) => {
-            track.stop();
-          });
-          return false;
-        }
-
-        const [videoTrack] = stream.getVideoTracks();
-        const trackSettings = videoTrack?.getSettings();
-        const trackFacingMode = trackSettings?.facingMode;
-
-        if (trackSettings?.deviceId) {
-          activeCameraDeviceIdRef.current = trackSettings.deviceId;
-        }
-
-        if (trackFacingMode === 'user' || trackFacingMode === 'environment') {
-          setCameraFacingMode(trackFacingMode);
-        } else {
-          setCameraFacingMode(facingMode);
-        }
-
-        await refreshVideoInputDevices();
-
-        cameraStreamRef.current = stream;
-        if (cameraVideoRef.current) {
-          cameraVideoRef.current.srcObject = stream;
-          await cameraVideoRef.current.play().catch(() => undefined);
-        }
-
-        if (requestId !== cameraStartRequestIdRef.current) {
-          stream.getTracks().forEach((track) => {
-            track.stop();
-          });
-          return false;
-        }
-
-        setIsCameraLiveOpen(true);
-        setIsCameraStarting(false);
-        return true;
+        jeelizApi.destroy?.();
       } catch {
-        setIsCameraStarting(false);
-        return false;
+        // Ignore stale instance errors before a fresh init.
       }
-    },
-    [refreshVideoInputDevices, releaseLiveCameraTracks],
-  );
 
-  const getNextCameraDeviceId = useCallback(async (): Promise<string | null> => {
-    const availableDeviceIds = await refreshVideoInputDevices();
-    if (availableDeviceIds.length < 2) {
-      return null;
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        jeelizApi.init({
+          canvasId: JEELIZ_CANVAS_ID,
+          NNCPath: JEELIZ_NNC_PATH,
+          maxFacesDetected: 1,
+          callbackReady: (errorCode: number) => {
+            if (settled) {
+              return;
+            }
+
+            if (errorCode) {
+              settled = true;
+              reject(new Error(`Jeeliz fallo al iniciar (codigo ${errorCode}).`));
+              return;
+            }
+
+            settled = true;
+            setCameraErrorMessage('');
+            resolve();
+          },
+          callbackTrack: (detectState: JeelizDetectState) => {
+            updateJeelizMask(detectState);
+          },
+        });
+      });
+
+      setIsCameraStarting(false);
+      return true;
+    } catch (error) {
+      stopJeelizCamera();
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo iniciar la camara con Jeeliz. Revisa permisos del navegador.';
+      setCameraErrorMessage(message);
+      setFeedback({
+        tone: 'warning',
+        message,
+      });
+      return false;
     }
-
-    const activeDeviceId = activeCameraDeviceIdRef.current;
-    const currentIndex = activeDeviceId ? availableDeviceIds.indexOf(activeDeviceId) : -1;
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % availableDeviceIds.length : 0;
-    return availableDeviceIds[nextIndex] ?? null;
-  }, [refreshVideoInputDevices]);
-
-  useEffect(() => {
-    if (!isCameraLiveOpen || !cameraVideoRef.current || !cameraStreamRef.current) {
-      return;
-    }
-
-    const video = cameraVideoRef.current;
-    video.srcObject = cameraStreamRef.current;
-    void video.play().catch(() => undefined);
-
-    return () => {
-      video.srcObject = null;
-    };
-  }, [isCameraLiveOpen]);
+  }, [isCameraLiveOpen, isCameraStarting, stopJeelizCamera, updateJeelizMask]);
 
   const uploadSelectedFiles = async (selectedFiles: File[]): Promise<void> => {
     if (selectedFiles.length === 0) {
@@ -1125,136 +1013,67 @@ function DashboardPage() {
       return;
     }
 
-    const openedLiveCamera = await startLiveCamera(cameraFacingMode);
-    if (openedLiveCamera) {
+    if (isCameraLiveOpen) {
       return;
     }
 
-    setCameraErrorMessage(
-      'No se pudo abrir la camara en modo avanzado. Se abrira la camara nativa o galeria.',
-    );
-    cameraCaptureInputRef.current?.click();
-  };
-
-  const handleOpenGalleryPicker = (): void => {
-    if (isUploading || !selectedSection) {
-      return;
-    }
-
-    galleryPickerInputRef.current?.click();
-  };
-
-  const handleCameraCaptureChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const capturedFile = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!capturedFile) {
-      return;
-    }
-
-    stopLiveCameraStream();
-    createCameraDraftFromFile(capturedFile, 'none');
-  };
-
-  const handleGalleryPickerChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const selectedFile = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!selectedFile) {
-      return;
-    }
-
-    stopLiveCameraStream();
-    createCameraDraftFromFile(selectedFile, 'none');
-  };
-
-  const handleToggleCameraFacing = async (): Promise<void> => {
-    if (isCameraStarting || isCapturingPhoto) {
-      return;
-    }
-
-    const nextFacingMode: CameraFacingMode =
-      cameraFacingMode === 'environment' ? 'user' : 'environment';
-    let switched = false;
-
-    const nextDeviceId = await getNextCameraDeviceId();
-    if (nextDeviceId) {
-      switched = await startLiveCamera(nextFacingMode, nextDeviceId);
-    }
-
-    if (!switched) {
-      switched = await startLiveCamera(nextFacingMode);
-    }
-
-    if (!switched) {
-      setCameraErrorMessage('No se pudo alternar la camara en este dispositivo.');
-      void startLiveCamera(cameraFacingMode, activeCameraDeviceIdRef.current ?? undefined);
-    }
+    await startJeelizCamera();
   };
 
   const handleCapturePhotoFromLiveCamera = async (): Promise<void> => {
-    if (!cameraVideoRef.current) {
+    if (!jeelizCanvasRef.current) {
       return;
     }
 
-    const video = cameraVideoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
+    if (isUploading || !selectedSection || isCapturingPhoto) {
+      return;
+    }
+
+    const sourceCanvas = jeelizCanvasRef.current;
+    if (sourceCanvas.width === 0 || sourceCanvas.height === 0) {
       setCameraErrorMessage('La camara aun no esta lista. Intenta nuevamente en un segundo.');
       return;
     }
 
     setIsCapturingPhoto(true);
+    try {
+      const outputCanvas = document.createElement('canvas');
+      outputCanvas.width = sourceCanvas.width;
+      outputCanvas.height = sourceCanvas.height;
+      const context = outputCanvas.getContext('2d');
+      if (!context) {
+        setCameraErrorMessage('No se pudo capturar la imagen.');
+        return;
+      }
 
-    const captureCanvas = document.createElement('canvas');
-    captureCanvas.width = video.videoWidth;
-    captureCanvas.height = video.videoHeight;
-    const context = captureCanvas.getContext('2d');
+      context.drawImage(sourceCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+      if (cameraFilterModeRef.current === 'basic') {
+        drawBasicJeelizOverlay(
+          context,
+          outputCanvas.width,
+          outputCanvas.height,
+          jeelizDetectStateRef.current,
+        );
+      }
 
-    if (!context) {
+      const photoBlob = await new Promise<Blob | null>((resolve) => {
+        outputCanvas.toBlob(resolve, 'image/jpeg', 0.92);
+      });
+
+      if (!photoBlob) {
+        setCameraErrorMessage('No se pudo generar la imagen capturada.');
+        return;
+      }
+
+      const timestamp = Date.now();
+      const capturedFile = new File([photoBlob], `captura-${timestamp}.jpg`, {
+        type: 'image/jpeg',
+      });
+
+      await uploadSelectedFiles([capturedFile]);
+    } finally {
       setIsCapturingPhoto(false);
-      setCameraErrorMessage('No se pudo capturar la imagen.');
-      return;
     }
-
-    context.filter = selectedCameraFilterConfig.cssFilter;
-    context.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-
-    const photoBlob = await new Promise<Blob | null>((resolve) => {
-      captureCanvas.toBlob(resolve, 'image/jpeg', 0.92);
-    });
-
-    if (!photoBlob) {
-      setIsCapturingPhoto(false);
-      setCameraErrorMessage('No se pudo generar la imagen capturada.');
-      return;
-    }
-
-    const timestamp = Date.now();
-    const capturedFile = new File([photoBlob], `captura-${timestamp}.jpg`, {
-      type: 'image/jpeg',
-    });
-
-    createCameraDraftFromFile(capturedFile, selectedCameraFilterConfig.id);
-    stopLiveCameraStream();
-    setIsCapturingPhoto(false);
-  };
-
-  const handleRetryCameraCapture = async (): Promise<void> => {
-    clearCameraDraft();
-    const openedLiveCamera = await startLiveCamera(cameraFacingMode);
-    if (!openedLiveCamera) {
-      cameraCaptureInputRef.current?.click();
-    }
-  };
-
-  const handleConfirmCameraDraftUpload = async (): Promise<void> => {
-    if (!cameraDraft) {
-      return;
-    }
-
-    const fileToUpload = cameraDraft.file;
-    clearCameraDraft();
-    await uploadSelectedFiles([fileToUpload]);
   };
 
   const handleToggleFavorite = async (image: GalleryImage): Promise<void> => {
@@ -1921,152 +1740,78 @@ function DashboardPage() {
         )}
       </section>
 
-      {/* Native fallback input: rear camera preference on mobile. */}
-      <input
-        ref={cameraCaptureInputRef}
-        className="camera-capture-input"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleCameraCaptureChange}
-        disabled={isUploading || !selectedSection}
-      />
-
-      {/* Gallery fallback input when camera is not available. */}
-      <input
-        ref={galleryPickerInputRef}
-        className="camera-capture-input"
-        type="file"
-        accept="image/*"
-        onChange={handleGalleryPickerChange}
-        disabled={isUploading || !selectedSection}
-      />
-
       {isCameraLiveOpen && (
         <div className="camera-live-overlay" role="dialog" aria-modal="true" aria-label="Camara">
-          <video
-            ref={cameraVideoRef}
-            className="camera-live-video"
-            autoPlay
-            playsInline
-            muted
-            style={{
-              filter: selectedCameraFilterConfig.cssFilter,
-              transform: cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none',
-            }}
-          />
+          <canvas id={JEELIZ_CANVAS_ID} ref={jeelizCanvasRef} className="camera-live-canvas" />
+          <div ref={jeelizMaskRef} className="jeeliz-basic-mask" aria-hidden="true" />
 
           <div className="camera-live-top">
             <button
               type="button"
               className="secondary-btn"
-              onClick={stopLiveCameraStream}
+              onClick={stopJeelizCamera}
               disabled={isCapturingPhoto}
             >
               Cerrar
             </button>
           </div>
 
-          <div className="camera-filter-row" role="group" aria-label="Filtros de camara">
-            {cameraFilterOptions.map((filterOption) => (
-              <button
-                key={filterOption.id}
-                type="button"
-                className={
-                  filterOption.id === selectedCameraFilter
-                    ? 'camera-filter-btn active'
-                    : 'camera-filter-btn'
-                }
-                onClick={() => setSelectedCameraFilter(filterOption.id)}
-                disabled={isCapturingPhoto}
-              >
-                {filterOption.label}
-              </button>
-            ))}
+          <div className="camera-control-panel" role="group" aria-label="Panel de filtros Jeeliz">
+            <button
+              type="button"
+              className="camera-control-btn"
+              onClick={() => {
+                void startJeelizCamera();
+              }}
+              disabled={isCameraStarting || isCapturingPhoto}
+            >
+              Activar camara
+            </button>
+            <button
+              type="button"
+              className={
+                cameraFilterMode === 'none'
+                  ? 'camera-control-btn active'
+                  : 'camera-control-btn'
+              }
+              onClick={() => setCameraFilterMode('none')}
+              disabled={isCameraStarting || isCapturingPhoto}
+            >
+              Desactivar filtro
+            </button>
+            <button
+              type="button"
+              className={
+                cameraFilterMode === 'basic'
+                  ? 'camera-control-btn active'
+                  : 'camera-control-btn'
+              }
+              onClick={() => setCameraFilterMode('basic')}
+              disabled={isCameraStarting || isCapturingPhoto}
+            >
+              Filtro basico Jeeliz
+            </button>
           </div>
+
+          <p className="camera-track-status">
+            {isFaceTracked ? 'Rostro detectado por Jeeliz.' : 'Buscando rostro para aplicar filtro.'}
+          </p>
 
           <div className="camera-live-actions">
             <button
               type="button"
-              className="secondary-btn"
-              onClick={handleOpenGalleryPicker}
-              disabled={isCapturingPhoto}
-            >
-              Galeria
-            </button>
-
-            <button
-              type="button"
-              className="camera-shutter-btn"
+              className="primary-btn camera-capture-btn"
               onClick={() => {
                 void handleCapturePhotoFromLiveCamera();
               }}
-              disabled={isCapturingPhoto || isCameraStarting}
-              aria-label="Tomar foto"
+              disabled={isCapturingPhoto || isCameraStarting || isUploading || !selectedSection}
             >
-              <span />
-            </button>
-
-            <button
-              type="button"
-              className="camera-switch-btn"
-              onClick={() => {
-                void handleToggleCameraFacing();
-              }}
-              disabled={isCapturingPhoto || isCameraStarting}
-              aria-label="Alternar camara frontal y principal"
-            >
-              <SwitchCameraIcon />
+              {isCapturingPhoto ? 'Guardando foto...' : 'Capturar y guardar'}
             </button>
           </div>
 
           {cameraErrorMessage && <p className="camera-live-notice">{cameraErrorMessage}</p>}
         </div>
-      )}
-
-      {cameraDraft && (
-        <section className="camera-canvas-overlay" aria-label="Vista previa de camara en canvas">
-          <canvas ref={cameraCanvasRef} className="camera-fullscreen-canvas" />
-
-          <div className="camera-canvas-head">
-            <span className="camera-filter-pill">
-              Filtro: {cameraFilterOptions.find((item) => item.id === cameraDraft.filterPreset)?.label ?? 'Normal'}
-            </span>
-          </div>
-
-          <div className="camera-canvas-actions">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() => {
-                void handleRetryCameraCapture();
-              }}
-              disabled={isUploading}
-            >
-              Repetir
-            </button>
-
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={() => {
-                void handleConfirmCameraDraftUpload();
-              }}
-              disabled={isUploading || !selectedSection}
-            >
-              {isUploading ? 'Guardando...' : 'Guardar en galeria'}
-            </button>
-
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={clearCameraDraft}
-              disabled={isUploading}
-            >
-              Cerrar
-            </button>
-          </div>
-        </section>
       )}
 
       <button
@@ -2076,7 +1821,7 @@ function DashboardPage() {
           void handleOpenCameraCapture();
         }}
         disabled={isUploading || !selectedSection}
-        aria-label="Abrir camara o galeria"
+        aria-label="Abrir camara con Jeeliz"
       >
         <CameraIcon />
         <span className="camera-fab-tooltip">Camara</span>
