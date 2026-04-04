@@ -248,6 +248,9 @@ function DashboardPage() {
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const cameraDeviceIdsRef = useRef<string[]>([]);
+  const activeCameraDeviceIdRef = useRef<string | null>(null);
+  const cameraStartRequestIdRef = useRef<number>(0);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -648,6 +651,7 @@ function DashboardPage() {
   }, []);
 
   const stopLiveCameraStream = useCallback((): void => {
+    cameraStartRequestIdRef.current += 1;
     releaseLiveCameraTracks();
 
     if (cameraVideoRef.current) {
@@ -755,35 +759,137 @@ function DashboardPage() {
     };
   }, [cameraDraft, drawDraftIntoCanvas]);
 
-  const startLiveCamera = useCallback(async (facingMode: CameraFacingMode): Promise<boolean> => {
-    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      return false;
+  const refreshVideoInputDevices = useCallback(async (): Promise<string[]> => {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
+      cameraDeviceIdsRef.current = [];
+      return [];
     }
 
     try {
-      setIsCameraStarting(true);
-      setCameraErrorMessage('');
-      releaseLiveCameraTracks();
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputIds = devices
+        .filter((device) => device.kind === 'videoinput')
+        .map((device) => device.deviceId)
+        .filter((deviceId) => deviceId.length > 0);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
+      cameraDeviceIdsRef.current = videoInputIds;
+      return videoInputIds;
+    } catch {
+      cameraDeviceIdsRef.current = [];
+      return [];
+    }
+  }, []);
+
+  const startLiveCamera = useCallback(
+    async (facingMode: CameraFacingMode, preferredDeviceId?: string): Promise<boolean> => {
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        return false;
+      }
+
+      const requestId = cameraStartRequestIdRef.current + 1;
+      cameraStartRequestIdRef.current = requestId;
+
+      try {
+        setIsCameraStarting(true);
+        setCameraErrorMessage('');
+        releaseLiveCameraTracks();
+
+        const videoConstraintCandidates: Array<MediaTrackConstraints | boolean> = [];
+        if (preferredDeviceId) {
+          videoConstraintCandidates.push({
+            deviceId: {
+              exact: preferredDeviceId,
+            },
+          });
+        }
+        videoConstraintCandidates.push({
+          facingMode: {
+            exact: facingMode,
+          },
+        });
+        videoConstraintCandidates.push({
           facingMode: {
             ideal: facingMode,
           },
-        },
-        audio: false,
-      });
+        });
+        videoConstraintCandidates.push(true);
 
-      cameraStreamRef.current = stream;
-      setCameraFacingMode(facingMode);
-      setIsCameraLiveOpen(true);
-      setIsCameraStarting(false);
-      return true;
-    } catch {
-      setIsCameraStarting(false);
-      return false;
+        let stream: MediaStream | null = null;
+        for (const videoConstraints of videoConstraintCandidates) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: videoConstraints,
+              audio: false,
+            });
+            break;
+          } catch {
+            stream = null;
+          }
+        }
+
+        if (!stream) {
+          setIsCameraStarting(false);
+          return false;
+        }
+
+        if (requestId !== cameraStartRequestIdRef.current) {
+          stream.getTracks().forEach((track) => {
+            track.stop();
+          });
+          return false;
+        }
+
+        const [videoTrack] = stream.getVideoTracks();
+        const trackSettings = videoTrack?.getSettings();
+        const trackFacingMode = trackSettings?.facingMode;
+
+        if (trackSettings?.deviceId) {
+          activeCameraDeviceIdRef.current = trackSettings.deviceId;
+        }
+
+        if (trackFacingMode === 'user' || trackFacingMode === 'environment') {
+          setCameraFacingMode(trackFacingMode);
+        } else {
+          setCameraFacingMode(facingMode);
+        }
+
+        await refreshVideoInputDevices();
+
+        cameraStreamRef.current = stream;
+        if (cameraVideoRef.current) {
+          cameraVideoRef.current.srcObject = stream;
+          await cameraVideoRef.current.play().catch(() => undefined);
+        }
+
+        if (requestId !== cameraStartRequestIdRef.current) {
+          stream.getTracks().forEach((track) => {
+            track.stop();
+          });
+          return false;
+        }
+
+        setIsCameraLiveOpen(true);
+        setIsCameraStarting(false);
+        return true;
+      } catch {
+        setIsCameraStarting(false);
+        return false;
+      }
+    },
+    [refreshVideoInputDevices, releaseLiveCameraTracks],
+  );
+
+  const getNextCameraDeviceId = useCallback(async (): Promise<string | null> => {
+    const availableDeviceIds = await refreshVideoInputDevices();
+    if (availableDeviceIds.length < 2) {
+      return null;
     }
-  }, [releaseLiveCameraTracks]);
+
+    const activeDeviceId = activeCameraDeviceIdRef.current;
+    const currentIndex = activeDeviceId ? availableDeviceIds.indexOf(activeDeviceId) : -1;
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % availableDeviceIds.length : 0;
+    return availableDeviceIds[nextIndex] ?? null;
+  }, [refreshVideoInputDevices]);
 
   useEffect(() => {
     if (!isCameraLiveOpen || !cameraVideoRef.current || !cameraStreamRef.current) {
@@ -975,10 +1081,20 @@ function DashboardPage() {
 
     const nextFacingMode: CameraFacingMode =
       cameraFacingMode === 'environment' ? 'user' : 'environment';
-    const switched = await startLiveCamera(nextFacingMode);
+    let switched = false;
+
+    const nextDeviceId = await getNextCameraDeviceId();
+    if (nextDeviceId) {
+      switched = await startLiveCamera(nextFacingMode, nextDeviceId);
+    }
+
+    if (!switched) {
+      switched = await startLiveCamera(nextFacingMode);
+    }
 
     if (!switched) {
       setCameraErrorMessage('No se pudo alternar la camara en este dispositivo.');
+      void startLiveCamera(cameraFacingMode, activeCameraDeviceIdRef.current ?? undefined);
     }
   };
 
@@ -1740,7 +1856,10 @@ function DashboardPage() {
             autoPlay
             playsInline
             muted
-            style={{ filter: selectedCameraFilterConfig.cssFilter }}
+            style={{
+              filter: selectedCameraFilterConfig.cssFilter,
+              transform: cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none',
+            }}
           />
 
           <div className="camera-live-top">
