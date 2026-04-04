@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import { useAuth } from '../auth/useAuth';
 import type { GalleryImage, GallerySection } from '../features/gallery/gallery.types';
 import {
@@ -31,6 +39,13 @@ type PendingUploadCard = {
   id: string;
   sectionId: string;
   fileName: string;
+};
+
+type CameraDraft = {
+  file: File;
+  previewUrl: string;
+  // Placeholder for future filter pipeline (Instagram-like effects).
+  filterPreset: 'none';
 };
 
 const formatDateTime = (date: Date): string =>
@@ -133,6 +148,21 @@ function UploadIcon() {
   );
 }
 
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M6 8.2h2.1l1.1-1.8h5.6l1.1 1.8H18a2 2 0 0 1 2 2v7.4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7.4a2 2 0 0 1 2-2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13.2" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -173,6 +203,8 @@ function DashboardPage() {
   const [pendingSectionName, setPendingSectionName] = useState<string | null>(null);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
+  const [cameraDraft, setCameraDraft] = useState<CameraDraft | null>(null);
+  const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -529,12 +561,29 @@ function DashboardPage() {
     void handleCreateSection();
   };
 
-  const handleUploadImage = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
-      file.type.startsWith('image/'),
-    );
-    event.target.value = '';
+  const clearCameraDraft = useCallback((): void => {
+    setCameraDraft((current) => {
+      if (current?.previewUrl) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
 
+      return null;
+    });
+
+    if (cameraCaptureInputRef.current) {
+      cameraCaptureInputRef.current.value = '';
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (cameraDraft?.previewUrl) {
+        URL.revokeObjectURL(cameraDraft.previewUrl);
+      }
+    };
+  }, [cameraDraft]);
+
+  const uploadSelectedFiles = async (selectedFiles: File[]): Promise<void> => {
     if (selectedFiles.length === 0) {
       return;
     }
@@ -645,6 +694,64 @@ function DashboardPage() {
       setIsUploading(false);
       setPendingUploadCards([]);
     }
+  };
+
+  const handleUploadImage = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    event.target.value = '';
+    await uploadSelectedFiles(selectedFiles);
+  };
+
+  const handleOpenCameraCapture = (): void => {
+    if (isUploading || !selectedSection) {
+      return;
+    }
+
+    cameraCaptureInputRef.current?.click();
+  };
+
+  const handleCameraCaptureChange = (event: ChangeEvent<HTMLInputElement>): void => {
+    const capturedFile = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!capturedFile) {
+      return;
+    }
+
+    if (!capturedFile.type.startsWith('image/')) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Solo se permiten archivos de imagen.',
+      });
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(capturedFile);
+
+    // Keep original file + preview in state so we can plug filters before upload later.
+    setCameraDraft((current) => {
+      if (current?.previewUrl) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
+
+      return {
+        file: capturedFile,
+        previewUrl,
+        filterPreset: 'none',
+      };
+    });
+  };
+
+  const handleConfirmCameraDraftUpload = async (): Promise<void> => {
+    if (!cameraDraft) {
+      return;
+    }
+
+    const fileToUpload = cameraDraft.file;
+    clearCameraDraft();
+    await uploadSelectedFiles([fileToUpload]);
   };
 
   const handleToggleFavorite = async (image: GalleryImage): Promise<void> => {
@@ -1310,6 +1417,61 @@ function DashboardPage() {
           </>
         )}
       </section>
+
+      {/* Hidden input: on mobile `capture="environment"` prioritizes rear camera, with gallery fallback. */}
+      <input
+        ref={cameraCaptureInputRef}
+        className="camera-capture-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleCameraCaptureChange}
+        disabled={isUploading || !selectedSection}
+      />
+
+      {/* Local preview before upload; this is the extension point for future image filters. */}
+      {cameraDraft && (
+        <section className="camera-preview-panel" aria-label="Vista previa de camara">
+          <div className="camera-preview-head">
+            <h3>Vista previa</h3>
+            <p>Lista para filtros y guardado en tu galeria.</p>
+          </div>
+          <div className="camera-preview-stage">
+            <img src={cameraDraft.previewUrl} alt="Vista previa capturada" />
+          </div>
+          <div className="camera-preview-actions">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={clearCameraDraft}
+              disabled={isUploading}
+            >
+              Descartar
+            </button>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => {
+                void handleConfirmCameraDraftUpload();
+              }}
+              disabled={isUploading || !selectedSection}
+            >
+              {isUploading ? 'Guardando...' : 'Guardar en galeria'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      <button
+        type="button"
+        className="camera-fab"
+        onClick={handleOpenCameraCapture}
+        disabled={isUploading || !selectedSection}
+        aria-label="Abrir camara o galeria"
+      >
+        <CameraIcon />
+        <span className="camera-fab-tooltip">Camara</span>
+      </button>
 
       {expandedImageInPool && (
         <div
