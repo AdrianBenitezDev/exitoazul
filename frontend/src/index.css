@@ -439,6 +439,10 @@ code {
   box-shadow: none;
 }
 
+.camera-capture-input {
+  display: none;
+}
+
 .camera-fab {
   position: fixed;
   right: clamp(0.9rem, 2.4vw, 1.5rem);
@@ -510,113 +514,18 @@ code {
   overflow: hidden;
 }
 
-.camera-live-video-feed {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+.camera-live-video {
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
   display: block;
-  z-index: 1;
-  background: #030712;
-}
-
-.camera-live-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.jeeliz-basic-mask {
-  position: absolute;
-  left: 0;
-  top: 0;
-  border-radius: 999px;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 3;
-  background:
-    radial-gradient(circle at 50% 32%, rgba(255, 239, 244, 0.3), rgba(255, 239, 244, 0) 66%),
-    radial-gradient(circle at 23% 61%, rgba(255, 123, 171, 0.26), rgba(255, 123, 171, 0) 38%),
-    radial-gradient(circle at 77% 61%, rgba(255, 123, 171, 0.26), rgba(255, 123, 171, 0) 38%);
-  border: 1px solid rgba(255, 199, 222, 0.34);
-  box-shadow: 0 10px 30px rgba(255, 150, 190, 0.2);
-  transition: opacity 160ms ease, transform 120ms linear, width 120ms linear, height 120ms linear;
-  mix-blend-mode: screen;
 }
 
 .camera-live-top {
   position: absolute;
   top: 0.85rem;
   right: 0.85rem;
-  z-index: 4;
-}
-
-.camera-control-panel {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 5.9rem;
-  width: min(96vw, 680px);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  z-index: 4;
-}
-
-.camera-control-btn {
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.6);
-  color: #ffffff;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 0.44rem 0.6rem;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: transform 130ms ease, background 130ms ease, border-color 130ms ease;
-}
-
-.camera-control-btn:hover:not(:disabled) {
-  background: rgba(30, 41, 59, 0.78);
-  border-color: #93c5fd;
-}
-
-.camera-control-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.camera-control-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.camera-control-btn.active {
-  background: rgba(11, 94, 215, 0.92);
-  border-color: #93c5fd;
-}
-
-.camera-track-status {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 9.55rem;
-  width: min(92vw, 470px);
-  border-radius: 10px;
-  border: 1px solid rgba(147, 197, 253, 0.42);
-  background: rgba(15, 23, 42, 0.58);
-  color: #dbeafe;
-  text-align: center;
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 0.38rem 0.62rem;
-  z-index: 4;
+  z-index: 3;
 }
 
 .camera-live-actions {
@@ -624,16 +533,112 @@ code {
   bottom: 1rem;
   left: 50%;
   transform: translateX(-50%);
-  width: min(95vw, 420px);
-  display: flex;
-  justify-content: center;
-  z-index: 4;
+  width: min(95vw, 520px);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.8rem;
+  z-index: 3;
 }
 
-.camera-capture-btn {
-  width: 100%;
+.camera-live-actions .secondary-btn {
   justify-content: center;
-  font-weight: 800;
+}
+
+.camera-switch-btn {
+  width: 46px;
+  height: 46px;
+  justify-self: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  background: rgba(15, 23, 42, 0.55);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.camera-switch-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
+.camera-switch-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(30, 41, 59, 0.72);
+  border-color: #93c5fd;
+}
+
+.camera-switch-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.camera-switch-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.camera-shutter-btn {
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  border: 3px solid #ffffff;
+  background: rgba(15, 23, 42, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.camera-shutter-btn span {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.camera-shutter-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.camera-shutter-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.camera-filter-row {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6.2rem;
+  width: min(96vw, 620px);
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.45rem 0.2rem;
+  z-index: 3;
+}
+
+.camera-filter-btn {
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.52);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 0.36rem 0.62rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.camera-filter-btn.active {
+  background: rgba(11, 94, 215, 0.92);
+  border-color: #93c5fd;
 }
 
 .camera-live-notice {
@@ -650,7 +655,50 @@ code {
   font-size: 0.76rem;
   font-weight: 700;
   text-align: center;
-  z-index: 5;
+  z-index: 2;
+}
+
+.camera-canvas-overlay {
+  position: fixed;
+  inset: 0;
+  background: #020617;
+  z-index: 83;
+  overflow: hidden;
+}
+
+.camera-fullscreen-canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+.camera-canvas-head {
+  position: absolute;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 2;
+}
+
+.camera-filter-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(147, 197, 253, 0.6);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  padding: 0.24rem 0.55rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.camera-canvas-actions {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1rem;
+  width: min(95vw, 540px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  z-index: 2;
 }
 
 .panel-head p {
@@ -1533,19 +1581,28 @@ code {
   }
 
   .camera-live-actions {
-    width: min(98vw, 420px);
+    width: min(98vw, 500px);
     gap: 0.6rem;
   }
 
-  .camera-control-panel {
-    width: 98vw;
-    grid-template-columns: 1fr;
-    bottom: 6.1rem;
+  .camera-shutter-btn {
+    width: 66px;
+    height: 66px;
   }
 
-  .camera-track-status {
+  .camera-shutter-btn span {
+    width: 50px;
+    height: 50px;
+  }
+
+  .camera-filter-row {
     width: 98vw;
-    bottom: 13.2rem;
+    bottom: 5.65rem;
+  }
+
+  .camera-canvas-actions {
+    width: 97vw;
+    grid-template-columns: 1fr;
   }
 
   .status-grid {
