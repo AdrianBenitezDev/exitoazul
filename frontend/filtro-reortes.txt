@@ -1,0 +1,38 @@
+Reporte de filtros de camara
+
+Nota
+Algunos filtros avanzados del TXT (como grano real/HDR/halacion) quedaron aproximados con cssFilter, listos para migrar a pipeline mas avanzado despues.
+
+Que significa esto en la practica
+1. Estado actual (cssFilter)
+- Se usan filtros CSS del navegador (contrast, saturate, hue-rotate, brightness, etc.).
+- Ventaja: es rapido de implementar y funciona bien para preview basica.
+- Limite: no permite efectos fisicamente realistas ni control fino por pixel.
+
+2. Que seria un pipeline avanzado
+- Procesar cada frame o imagen en etapas (pipeline), no solo con filtros CSS.
+- Etapas tipicas:
+  - Entrada: frame de camara o imagen original.
+  - Correccion base: exposicion, balance de blancos, curva tonal.
+  - Estetica: look (LUT), color grading, contraste local.
+  - Efectos: grano real, halacion, bloom/glow, viñeta, nitidez selectiva.
+  - Salida: preview en pantalla + export de imagen final.
+
+3. Tecnologias recomendadas para esa migracion
+- Canvas 2D: base simple para prototipos.
+- WebGL o WebGPU: recomendado para efectos complejos en tiempo real.
+- OffscreenCanvas + Web Worker: para no bloquear la UI en dispositivos moviles.
+
+4. Por que grano real, HDR y halacion hoy son aproximados
+- Grano real: requiere generar ruido por pixel con patron organico y mezcla por canal.
+- HDR falso: con CSS solo se simula contraste/brillo; no hay tone mapping real.
+- Halacion: requiere difusion por zonas de altas luces (blur selectivo + mezcla aditiva).
+
+5. Plan sugerido de evolucion
+- Fase 1: mantener cssFilter para velocidad y compatibilidad.
+- Fase 2: agregar pipeline Canvas con parametros (intensidad 0-100).
+- Fase 3: migrar efectos premium a WebGL/WebGPU.
+- Fase 4: guardar preset + parametros por usuario para reusar estilos.
+
+Resultado
+La app ya tiene filtros visuales utiles para uso diario. Los efectos avanzados estan preparados conceptualmente y se pueden implementar sin romper la UX actual.

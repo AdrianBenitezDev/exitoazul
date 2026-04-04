@@ -41,7 +41,55 @@ type PendingUploadCard = {
   fileName: string;
 };
 
-type CameraFilterId = 'none' | 'vivid' | 'mono' | 'warm' | 'cool';
+type CameraFilterId =
+  | 'none'
+  | 'vivid'
+  | 'mono'
+  | 'warm'
+  | 'cool'
+  | 'soft'
+  | 'highContrast'
+  | 'bright'
+  | 'cinematicDark'
+  | 'matte'
+  | 'clarendon'
+  | 'gingham'
+  | 'moon'
+  | 'lark'
+  | 'reyes'
+  | 'juno'
+  | 'slumber'
+  | 'crema'
+  | 'ludwig'
+  | 'aden'
+  | 'perpetua'
+  | 'amaro'
+  | 'sepiaClassic'
+  | 'retroFilm'
+  | 'polaroid'
+  | 'kodakWarm'
+  | 'fujiCool'
+  | 'analogFade'
+  | 'noir'
+  | 'cyanotype'
+  | 'duotoneBlue'
+  | 'duotoneMagenta'
+  | 'neonPop'
+  | 'cyberpunk'
+  | 'tealOrange'
+  | 'glowSoft'
+  | 'glowStrong'
+  | 'autoContrast'
+  | 'autoColor'
+  | 'wbWarm'
+  | 'wbCool'
+  | 'exposurePlus'
+  | 'exposureMinus'
+  | 'skinNatural'
+  | 'skinWarm'
+  | 'beautySoft'
+  | 'whiteClean'
+  | 'textureDetail';
 type CameraFacingMode = 'environment' | 'user';
 
 type CameraDraft = {
@@ -63,6 +111,49 @@ const cameraFilterOptions: Array<{ id: CameraFilterId; label: string; cssFilter:
   { id: 'mono', label: 'B/N', cssFilter: 'grayscale(1) contrast(1.05)' },
   { id: 'warm', label: 'Calido', cssFilter: 'sepia(0.24) saturate(1.2) hue-rotate(-12deg)' },
   { id: 'cool', label: 'Frio', cssFilter: 'saturate(1.08) hue-rotate(16deg) brightness(1.02)' },
+  { id: 'soft', label: 'Suave', cssFilter: 'contrast(0.9) brightness(1.06) saturate(0.94)' },
+  { id: 'highContrast', label: 'Alto contraste', cssFilter: 'contrast(1.35) saturate(1.08)' },
+  { id: 'bright', label: 'Brillante', cssFilter: 'brightness(1.15) saturate(1.06)' },
+  { id: 'cinematicDark', label: 'Oscuro cine', cssFilter: 'brightness(0.82) contrast(1.2) saturate(0.9)' },
+  { id: 'matte', label: 'Mate', cssFilter: 'contrast(0.88) saturate(0.92) brightness(1.02)' },
+  { id: 'clarendon', label: 'Clarendon', cssFilter: 'contrast(1.12) saturate(1.24) hue-rotate(8deg)' },
+  { id: 'gingham', label: 'Gingham', cssFilter: 'brightness(1.06) contrast(0.92) saturate(0.86)' },
+  { id: 'moon', label: 'Moon', cssFilter: 'grayscale(1) contrast(1.15) brightness(1.02)' },
+  { id: 'lark', label: 'Lark', cssFilter: 'brightness(1.11) contrast(0.97) saturate(1.06)' },
+  { id: 'reyes', label: 'Reyes', cssFilter: 'saturate(0.82) brightness(1.08) contrast(0.93)' },
+  { id: 'juno', label: 'Juno', cssFilter: 'saturate(1.3) contrast(1.14) hue-rotate(-6deg)' },
+  { id: 'slumber', label: 'Slumber', cssFilter: 'saturate(0.86) contrast(0.94) brightness(1.05)' },
+  { id: 'crema', label: 'Crema', cssFilter: 'sepia(0.18) saturate(1.04) brightness(1.07)' },
+  { id: 'ludwig', label: 'Ludwig', cssFilter: 'contrast(1.12) brightness(1.03) sepia(0.14)' },
+  { id: 'aden', label: 'Aden', cssFilter: 'hue-rotate(-14deg) saturate(0.82) brightness(1.08)' },
+  { id: 'perpetua', label: 'Perpetua', cssFilter: 'hue-rotate(18deg) brightness(1.08) contrast(1.02)' },
+  { id: 'amaro', label: 'Amaro', cssFilter: 'brightness(1.14) contrast(0.96) saturate(1.08)' },
+  { id: 'sepiaClassic', label: 'Sepia clasico', cssFilter: 'sepia(0.66) contrast(1.03) brightness(0.95)' },
+  { id: 'retroFilm', label: 'Retro film', cssFilter: 'sepia(0.34) saturate(0.94) contrast(1.07) brightness(0.96)' },
+  { id: 'polaroid', label: 'Polaroid', cssFilter: 'contrast(0.98) saturate(1.1) brightness(1.1) sepia(0.12)' },
+  { id: 'kodakWarm', label: 'Kodak warm', cssFilter: 'sepia(0.24) saturate(1.18) contrast(1.06)' },
+  { id: 'fujiCool', label: 'Fuji cool', cssFilter: 'hue-rotate(12deg) saturate(1.04) contrast(1.08)' },
+  { id: 'analogFade', label: 'Fade analogico', cssFilter: 'contrast(0.86) saturate(0.88) brightness(1.05)' },
+  { id: 'noir', label: 'Noir', cssFilter: 'grayscale(1) contrast(1.36) brightness(0.9)' },
+  { id: 'cyanotype', label: 'Cyanotype', cssFilter: 'grayscale(0.4) hue-rotate(165deg) contrast(1.15) saturate(1.2)' },
+  { id: 'duotoneBlue', label: 'Duotono azul', cssFilter: 'grayscale(0.55) hue-rotate(155deg) saturate(1.34) contrast(1.12)' },
+  { id: 'duotoneMagenta', label: 'Duotono magenta', cssFilter: 'grayscale(0.45) hue-rotate(290deg) saturate(1.42) contrast(1.08)' },
+  { id: 'neonPop', label: 'Neon pop', cssFilter: 'saturate(1.5) contrast(1.24) hue-rotate(8deg)' },
+  { id: 'cyberpunk', label: 'Cyberpunk', cssFilter: 'saturate(1.45) contrast(1.28) hue-rotate(40deg) brightness(0.95)' },
+  { id: 'tealOrange', label: 'Teal & Orange', cssFilter: 'contrast(1.15) saturate(1.26) hue-rotate(-8deg)' },
+  { id: 'glowSoft', label: 'Glow suave', cssFilter: 'brightness(1.12) contrast(0.96) saturate(1.05)' },
+  { id: 'glowStrong', label: 'Glow fuerte', cssFilter: 'brightness(1.2) contrast(0.9) saturate(1.12)' },
+  { id: 'autoContrast', label: 'Auto contraste', cssFilter: 'contrast(1.16) brightness(1.02)' },
+  { id: 'autoColor', label: 'Auto color', cssFilter: 'saturate(1.14) contrast(1.04)' },
+  { id: 'wbWarm', label: 'WB calido', cssFilter: 'hue-rotate(-9deg) saturate(1.05) brightness(1.02)' },
+  { id: 'wbCool', label: 'WB frio', cssFilter: 'hue-rotate(10deg) saturate(1.03) brightness(1.02)' },
+  { id: 'exposurePlus', label: 'Exposicion +1', cssFilter: 'brightness(1.12) contrast(0.98)' },
+  { id: 'exposureMinus', label: 'Exposicion -1', cssFilter: 'brightness(0.88) contrast(1.04)' },
+  { id: 'skinNatural', label: 'Piel natural', cssFilter: 'saturate(1.04) contrast(0.98) brightness(1.03)' },
+  { id: 'skinWarm', label: 'Piel calida', cssFilter: 'sepia(0.14) hue-rotate(-8deg) saturate(1.08)' },
+  { id: 'beautySoft', label: 'Beauty leve', cssFilter: 'brightness(1.08) contrast(0.92) saturate(1.02)' },
+  { id: 'whiteClean', label: 'Blanco limpio', cssFilter: 'brightness(1.14) contrast(1.06) saturate(0.98)' },
+  { id: 'textureDetail', label: 'Detalle textura', cssFilter: 'contrast(1.26) saturate(1.03) brightness(0.98)' },
 ];
 
 const buildSourceFileFromUrl = async (
