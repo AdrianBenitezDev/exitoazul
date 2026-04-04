@@ -51,11 +51,15 @@ type JeelizDetectState = {
   ry?: number;
 };
 
+type JeelizReadySpec = {
+  videoElement?: HTMLVideoElement | null;
+};
+
 type JeelizFaceFilterInitSpec = {
   canvasId: string;
   NNCPath: string;
   maxFacesDetected?: number;
-  callbackReady: (errorCode: number, spec?: unknown) => void;
+  callbackReady: (errorCode: number, spec?: JeelizReadySpec) => void;
   callbackTrack: (detectState: JeelizDetectState) => void;
 };
 
@@ -374,6 +378,7 @@ function DashboardPage() {
   const [isCapturingPhoto, setIsCapturingPhoto] = useState<boolean>(false);
   const [isFaceTracked, setIsFaceTracked] = useState<boolean>(false);
   const [cameraErrorMessage, setCameraErrorMessage] = useState<string>('');
+  const cameraPreviewVideoRef = useRef<HTMLVideoElement | null>(null);
   const jeelizCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const jeelizMaskRef = useRef<HTMLDivElement | null>(null);
   const jeelizDetectStateRef = useRef<JeelizDetectState | null>(null);
@@ -800,6 +805,13 @@ function DashboardPage() {
       // Ignore destroy errors to avoid blocking UI close.
     }
 
+    const previewVideoElement = cameraPreviewVideoRef.current;
+    if (previewVideoElement) {
+      previewVideoElement.pause();
+      previewVideoElement.srcObject = null;
+      previewVideoElement.removeAttribute('src');
+    }
+
     hideJeelizMask();
     setIsCameraLiveOpen(false);
     setIsCameraStarting(false);
@@ -846,6 +858,9 @@ function DashboardPage() {
 
     if (isCameraLiveOpen && window.JEELIZFACEFILTER?.toggle_pause) {
       window.JEELIZFACEFILTER.toggle_pause(false, false);
+      if (cameraPreviewVideoRef.current?.paused) {
+        void cameraPreviewVideoRef.current.play().catch(() => undefined);
+      }
       setCameraErrorMessage('');
       return true;
     }
@@ -875,7 +890,7 @@ function DashboardPage() {
           canvasId: JEELIZ_CANVAS_ID,
           NNCPath: JEELIZ_NNC_PATH,
           maxFacesDetected: 1,
-          callbackReady: (errorCode: number) => {
+          callbackReady: (errorCode: number, spec?: JeelizReadySpec) => {
             if (settled) {
               return;
             }
@@ -884,6 +899,22 @@ function DashboardPage() {
               settled = true;
               reject(new Error(`Jeeliz fallo al iniciar (codigo ${errorCode}).`));
               return;
+            }
+
+            const previewVideoElement = cameraPreviewVideoRef.current;
+            const sourceVideoElement = spec?.videoElement;
+            if (previewVideoElement && sourceVideoElement) {
+              previewVideoElement.muted = true;
+              previewVideoElement.playsInline = true;
+              previewVideoElement.autoplay = true;
+
+              if (sourceVideoElement.srcObject) {
+                previewVideoElement.srcObject = sourceVideoElement.srcObject;
+              } else if (sourceVideoElement.currentSrc) {
+                previewVideoElement.src = sourceVideoElement.currentSrc;
+              }
+
+              void previewVideoElement.play().catch(() => undefined);
             }
 
             settled = true;
@@ -1768,6 +1799,7 @@ function DashboardPage() {
 
       {isCameraLiveOpen && (
         <div className="camera-live-overlay" role="dialog" aria-modal="true" aria-label="Camara">
+          <video ref={cameraPreviewVideoRef} className="camera-live-video-feed" autoPlay muted playsInline />
           <canvas id={JEELIZ_CANVAS_ID} ref={jeelizCanvasRef} className="camera-live-canvas" />
           <div ref={jeelizMaskRef} className="jeeliz-basic-mask" aria-hidden="true" />
 

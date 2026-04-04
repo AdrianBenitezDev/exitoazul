@@ -510,10 +510,26 @@ code {
   overflow: hidden;
 }
 
-.camera-live-canvas {
-  width: 100vw;
-  height: 100vh;
+.camera-live-video-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
+  z-index: 1;
+  background: #030712;
+}
+
+.camera-live-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .jeeliz-basic-mask {
