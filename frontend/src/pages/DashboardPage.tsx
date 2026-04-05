@@ -340,6 +340,29 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
 }
 
 const IMAGES_PAGE_STEP = 60;
+const FAVORITES_SECTION_KEYS = new Set([
+  'favoritas',
+  'favoritos',
+  'favorita',
+  'favorites',
+  'favourites',
+  'favorite',
+]);
+
+const normalizeSectionIdentity = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es-AR')
+    .replace(/[^a-z0-9]+/g, '');
+
+const isFavoritesSectionProtected = (section: Pick<GallerySection, 'id' | 'name'>): boolean => {
+  const normalizedId = normalizeSectionIdentity(section.id);
+  const normalizedName = normalizeSectionIdentity(section.name);
+
+  return FAVORITES_SECTION_KEYS.has(normalizedId) || FAVORITES_SECTION_KEYS.has(normalizedName);
+};
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -474,6 +497,19 @@ function DashboardPage() {
     [images, selectedSectionId],
   );
   const canLoadMoreImages = images.length >= imagesLimit;
+  const sectionCoverImageById = useMemo(() => {
+    const coverBySectionId = new Map<string, GalleryImage>();
+
+    images.forEach((image) => {
+      if (!image.sectionId || coverBySectionId.has(image.sectionId)) {
+        return;
+      }
+
+      coverBySectionId.set(image.sectionId, image);
+    });
+
+    return coverBySectionId;
+  }, [images]);
 
   const expandedImage = useMemo(
     () => images.find((image) => image.id === expandedImageId) ?? null,
@@ -762,6 +798,14 @@ function DashboardPage() {
   };
 
   const openEditSectionModal = (section: GallerySection): void => {
+    if (isFavoritesSectionProtected(section)) {
+      setFeedback({
+        tone: 'warning',
+        message: 'La categoria Favoritas esta protegida y no se puede editar.',
+      });
+      return;
+    }
+
     setEditingSectionId(section.id);
     setEditingSectionName(section.name);
     setIsEditSectionModalOpen(true);
@@ -772,6 +816,16 @@ function DashboardPage() {
       setFeedback({
         tone: 'warning',
         message: 'No hay sesion valida para editar la categoria.',
+      });
+      return;
+    }
+
+    const sectionToEdit = sections.find((section) => section.id === editingSectionId);
+    if (sectionToEdit && isFavoritesSectionProtected(sectionToEdit)) {
+      setIsEditSectionModalOpen(false);
+      setFeedback({
+        tone: 'warning',
+        message: 'La categoria Favoritas esta protegida y no se puede editar.',
       });
       return;
     }
@@ -829,6 +883,14 @@ function DashboardPage() {
       setFeedback({
         tone: 'warning',
         message: 'No hay sesion valida para eliminar categorias.',
+      });
+      return;
+    }
+
+    if (isFavoritesSectionProtected(section)) {
+      setFeedback({
+        tone: 'warning',
+        message: 'La categoria Favoritas esta protegida y no se puede eliminar.',
       });
       return;
     }
@@ -1807,54 +1869,73 @@ function DashboardPage() {
               </article>
             )}
 
-            {sections.map((section) => (
-              <article key={section.id} className="category-card" role="listitem">
-                <div className="category-card-head">
+            {sections.map((section) => {
+              const isProtectedSection = isFavoritesSectionProtected(section);
+              const coverImage = sectionCoverImageById.get(section.id);
+
+              return (
+                <article key={section.id} className="category-card" role="listitem">
+                  <div className="category-card-cover">
+                    {coverImage ? (
+                      <img
+                        src={coverImage.thumbnailUrl ?? coverImage.previewUrl}
+                        alt={coverImage.fileName}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <span>Sin imagen</span>
+                    )}
+                  </div>
+
+                  <div className="category-card-head">
+                    <button
+                      type="button"
+                      className="category-icon-btn"
+                      aria-label={`Editar ${section.name}`}
+                      onClick={() => openEditSectionModal(section)}
+                      disabled={isCategoryBusy || isProtectedSection}
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="category-icon-btn danger"
+                      aria-label={`Eliminar ${section.name}`}
+                      onClick={() => {
+                        void handleDeleteSection(section);
+                      }}
+                      disabled={isCategoryBusy || isProtectedSection}
+                    >
+                      {deletingSectionId === section.id ? <span className="inline-spinner" aria-hidden="true" /> : <CloseIcon />}
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    className="category-icon-btn"
-                    aria-label={`Editar ${section.name}`}
-                    onClick={() => openEditSectionModal(section)}
-                    disabled={isCategoryBusy}
+                    className={
+                      selectedSectionId === section.id
+                        ? 'category-select-btn active'
+                        : 'category-select-btn'
+                    }
+                    onClick={() => setSelectedSectionId(section.id)}
                   >
-                    <EditIcon />
+                    {section.name}
                   </button>
+                  <span className="category-count">{countImagesBySection(section.id)} imagenes</span>
                   <button
                     type="button"
-                    className="category-icon-btn danger"
-                    aria-label={`Eliminar ${section.name}`}
+                    className="secondary-btn category-share-btn"
                     onClick={() => {
-                      void handleDeleteSection(section);
+                      void handleSectionShare(section.id);
                     }}
-                    disabled={isCategoryBusy}
+                    disabled={isSharing || isCategoryBusy}
                   >
-                    {deletingSectionId === section.id ? <span className="inline-spinner" aria-hidden="true" /> : <CloseIcon />}
+                    Compartir
                   </button>
-                </div>
-                <button
-                  type="button"
-                  className={
-                    selectedSectionId === section.id
-                      ? 'category-select-btn active'
-                      : 'category-select-btn'
-                  }
-                  onClick={() => setSelectedSectionId(section.id)}
-                >
-                  {section.name}
-                </button>
-                <span className="category-count">{countImagesBySection(section.id)} imagenes</span>
-                <button
-                  type="button"
-                  className="secondary-btn category-share-btn"
-                  onClick={() => {
-                    void handleSectionShare(section.id);
-                  }}
-                  disabled={isSharing || isCategoryBusy}
-                >
-                  Compartir
-                </button>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
