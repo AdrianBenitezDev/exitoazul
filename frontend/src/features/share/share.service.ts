@@ -133,12 +133,19 @@ const shareLinkByClient = async (url: string): Promise<void> => {
   const text = 'Galeria privada de Exito Azul';
 
   if (canUseNavigatorShare()) {
-    await navigator.share({
-      title: 'Exito Azul',
-      text,
-      url,
-    });
-    return;
+    try {
+      await navigator.share({
+        title: 'Exito Azul',
+        text,
+        url,
+      });
+      return;
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      // Fallback a clipboard / apertura de URL cuando Web Share falla en desktop.
+    }
   }
 
   if (await writeTextToClipboard(url)) {
@@ -265,11 +272,18 @@ export const shareTemporaryLinks = async (links: ShareLinkResult[]): Promise<voi
   const text = `Links temporales de Exito Azul:\n${urls.join('\n')}`;
 
   if (canUseNavigatorShare()) {
-    await navigator.share({
-      title: 'Exito Azul',
-      text,
-    });
-    return;
+    try {
+      await navigator.share({
+        title: 'Exito Azul',
+        text,
+      });
+      return;
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      // Continua al fallback.
+    }
   }
 
   if (await writeTextToClipboard(text)) {

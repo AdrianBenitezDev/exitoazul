@@ -25,7 +25,8 @@ if (firebaseIsConfigured) {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
-  functions = getFunctions(app);
+  // Las Cloud Functions del proyecto estan desplegadas en us-south1.
+  functions = getFunctions(app, 'us-south1');
 }
 
 export const firebaseApp = app;
