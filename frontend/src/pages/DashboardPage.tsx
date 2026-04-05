@@ -12,7 +12,9 @@ import type { GalleryImage, GallerySection } from '../features/gallery/gallery.t
 import {
   createUserSection,
   deleteUserImage,
+  deleteUserSectionWithImages,
   ensureDefaultSection,
+  renameUserSectionAndImages,
   setUserImageFavorite,
   subscribeUserImages,
   subscribeUserSections,
@@ -289,6 +291,35 @@ function SwitchCameraIcon() {
   );
 }
 
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M5.2 16.8 4.5 20l3.2-.7L18 9 15 6zM13.8 7.2l3 3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M6.8 6.8 17.2 17.2M17.2 6.8 6.8 17.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -327,8 +358,13 @@ function DashboardPage() {
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
   const [expandedImageSource, setExpandedImageSource] = useState<'section' | 'selected'>('section');
   const [isCreateSectionModalOpen, setIsCreateSectionModalOpen] = useState<boolean>(false);
+  const [isEditSectionModalOpen, setIsEditSectionModalOpen] = useState<boolean>(false);
   const [isCreatingSection, setIsCreatingSection] = useState<boolean>(false);
+  const [isEditingSection, setIsEditingSection] = useState<boolean>(false);
+  const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
   const [pendingSectionName, setPendingSectionName] = useState<string | null>(null);
+  const [editingSectionId, setEditingSectionId] = useState<string>('');
+  const [editingSectionName, setEditingSectionName] = useState<string>('');
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
   const [cameraDraft, setCameraDraft] = useState<CameraDraft | null>(null);
@@ -347,6 +383,7 @@ function DashboardPage() {
   const cameraDeviceIdsRef = useRef<string[]>([]);
   const activeCameraDeviceIdRef = useRef<string | null>(null);
   const cameraStartRequestIdRef = useRef<number>(0);
+  const [isExpandedImageLoading, setIsExpandedImageLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!firestoreDb || !user) {
@@ -503,6 +540,23 @@ function DashboardPage() {
     };
   }, [isCreateSectionModalOpen]);
 
+  useEffect(() => {
+    if (!isEditSectionModalOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIsEditSectionModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEditSectionModalOpen]);
+
   const selectedVisibleImages = useMemo(
     () => visibleImages.filter((image) => selectedImageIds.includes(image.id)),
     [visibleImages, selectedImageIds],
@@ -526,6 +580,10 @@ function DashboardPage() {
     [expandedImagePool, expandedImageId],
   );
 
+  useEffect(() => {
+    setIsExpandedImageLoading(Boolean(expandedImageInPool));
+  }, [expandedImageInPool]);
+
   const expandedImageIndex = useMemo(
     () => expandedImagePool.findIndex((image) => image.id === expandedImageId),
     [expandedImagePool, expandedImageId],
@@ -537,6 +595,24 @@ function DashboardPage() {
   const visiblePendingUploadCards = pendingUploadCards.filter(
     (pendingCard) => pendingCard.sectionId === selectedSectionId,
   );
+
+  const normalizeSectionName = (value: string): string =>
+    value.trim().toLocaleLowerCase('es-AR');
+
+  const hasSectionNameConflict = (
+    sectionName: string,
+    exceptSectionId?: string,
+  ): boolean => {
+    const normalizedName = normalizeSectionName(sectionName);
+
+    return sections.some((section) => {
+      if (exceptSectionId && section.id === exceptSectionId) {
+        return false;
+      }
+
+      return normalizeSectionName(section.name) === normalizedName;
+    });
+  };
 
   const countImagesBySection = (sectionId: string): number =>
     images.filter((image) => image.sectionId === sectionId).length;
@@ -649,6 +725,14 @@ function DashboardPage() {
       return;
     }
 
+    if (hasSectionNameConflict(trimmedName)) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Ya existe una categoria con ese nombre.',
+      });
+      return;
+    }
+
     setIsCreatingSection(true);
     setPendingSectionName(trimmedName);
     setIsCreateSectionModalOpen(false);
@@ -675,6 +759,127 @@ function DashboardPage() {
   const handleCreateSectionSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     void handleCreateSection();
+  };
+
+  const openEditSectionModal = (section: GallerySection): void => {
+    setEditingSectionId(section.id);
+    setEditingSectionName(section.name);
+    setIsEditSectionModalOpen(true);
+  };
+
+  const handleEditSection = async (): Promise<void> => {
+    if (!firestoreDb || !user || !editingSectionId) {
+      setFeedback({
+        tone: 'warning',
+        message: 'No hay sesion valida para editar la categoria.',
+      });
+      return;
+    }
+
+    const trimmedName = editingSectionName.trim();
+    if (!trimmedName) {
+      setFeedback({
+        tone: 'warning',
+        message: 'El nombre de categoria no puede estar vacio.',
+      });
+      return;
+    }
+
+    if (hasSectionNameConflict(trimmedName, editingSectionId)) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Ya existe una categoria con ese nombre.',
+      });
+      return;
+    }
+
+    setIsEditingSection(true);
+
+    try {
+      const renameResult = await renameUserSectionAndImages({
+        db: firestoreDb,
+        uid: user.uid,
+        sectionId: editingSectionId,
+        nextSectionName: trimmedName,
+      });
+
+      setIsEditSectionModalOpen(false);
+      setFeedback({
+        tone: 'success',
+        message:
+          `Categoria actualizada. Se renombraron ${renameResult.renamedImages} imagen(es).`,
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo editar la categoria.',
+      });
+    } finally {
+      setIsEditingSection(false);
+    }
+  };
+
+  const handleEditSectionSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    void handleEditSection();
+  };
+
+  const handleDeleteSection = async (section: GallerySection): Promise<void> => {
+    if (!firestoreDb || !firebaseStorage || !user) {
+      setFeedback({
+        tone: 'warning',
+        message: 'No hay sesion valida para eliminar categorias.',
+      });
+      return;
+    }
+
+    if (sections.length <= 1) {
+      setFeedback({
+        tone: 'warning',
+        message: 'Debes conservar al menos una categoria.',
+      });
+      return;
+    }
+
+    const imageCount = countImagesBySection(section.id);
+    const confirmation = window.confirm(
+      `Vas a eliminar la categoria "${section.name}" y ${imageCount} imagen(es). ¿Deseas continuar?`,
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    if (selectedSectionId === section.id) {
+      const fallbackSection = sections.find((candidate) => candidate.id !== section.id);
+      if (fallbackSection) {
+        setSelectedSectionId(fallbackSection.id);
+      }
+    }
+
+    setDeletingSectionId(section.id);
+
+    try {
+      const deleteResult = await deleteUserSectionWithImages({
+        db: firestoreDb,
+        storage: firebaseStorage,
+        uid: user.uid,
+        sectionId: section.id,
+      });
+
+      setFeedback({
+        tone: 'success',
+        message:
+          `Categoria eliminada. Se borraron ${deleteResult.deletedImages} imagen(es).`,
+      });
+    } catch {
+      setFeedback({
+        tone: 'warning',
+        message: 'No se pudo eliminar la categoria.',
+      });
+    } finally {
+      setDeletingSectionId(null);
+    }
   };
 
   const selectedCameraFilterConfig = useMemo(
@@ -1565,6 +1770,8 @@ function DashboardPage() {
     setImagesLimit((currentLimit) => currentLimit + IMAGES_PAGE_STEP);
   };
 
+  const isCategoryBusy = isCreatingSection || isEditingSection || deletingSectionId !== null;
+
   return (
     <div className="page-stack">
       <section className="panel">
@@ -1581,7 +1788,7 @@ function DashboardPage() {
               className="category-add-card"
               onClick={() => setIsCreateSectionModalOpen(true)}
               aria-label="Agregar nueva categoria"
-              disabled={isCreatingSection}
+              disabled={isCategoryBusy}
             >
               <span className="category-add-plus">+</span>
               <span>Agregar</span>
@@ -1602,6 +1809,28 @@ function DashboardPage() {
 
             {sections.map((section) => (
               <article key={section.id} className="category-card" role="listitem">
+                <div className="category-card-head">
+                  <button
+                    type="button"
+                    className="category-icon-btn"
+                    aria-label={`Editar ${section.name}`}
+                    onClick={() => openEditSectionModal(section)}
+                    disabled={isCategoryBusy}
+                  >
+                    <EditIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className="category-icon-btn danger"
+                    aria-label={`Eliminar ${section.name}`}
+                    onClick={() => {
+                      void handleDeleteSection(section);
+                    }}
+                    disabled={isCategoryBusy}
+                  >
+                    {deletingSectionId === section.id ? <span className="inline-spinner" aria-hidden="true" /> : <CloseIcon />}
+                  </button>
+                </div>
                 <button
                   type="button"
                   className={
@@ -1620,7 +1849,7 @@ function DashboardPage() {
                   onClick={() => {
                     void handleSectionShare(section.id);
                   }}
-                  disabled={isSharing}
+                  disabled={isSharing || isCategoryBusy}
                 >
                   Compartir
                 </button>
@@ -1668,15 +1897,68 @@ function DashboardPage() {
                 }}
                 placeholder="Ejemplo: Favoritas"
                 aria-label="Nombre de categoria"
-                disabled={isLoadingData || isCreatingSection}
+                disabled={isLoadingData || isCategoryBusy}
                 autoFocus
               />
               <button
                 type="submit"
                 className="primary-btn"
-                disabled={isLoadingData || isCreatingSection}
+                disabled={isLoadingData || isCategoryBusy}
               >
                 {isCreatingSection ? 'Creando...' : 'Agregar'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditSectionModalOpen && (
+        <div
+          className="category-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Editar categoria"
+          onClick={() => {
+            setIsEditSectionModalOpen(false);
+          }}
+        >
+          <div
+            className="category-modal-card"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <button
+              type="button"
+              className="category-modal-close"
+              aria-label="Cerrar modal de edicion"
+              onClick={() => {
+                setIsEditSectionModalOpen(false);
+              }}
+            >
+              x
+            </button>
+
+            <h3>Editar categoria</h3>
+
+            <form className="category-modal-form" onSubmit={handleEditSectionSubmit}>
+              <input
+                type="text"
+                value={editingSectionName}
+                onChange={(event) => {
+                  setEditingSectionName(event.target.value);
+                }}
+                placeholder="Nuevo nombre de categoria"
+                aria-label="Nuevo nombre de categoria"
+                disabled={isLoadingData || isCategoryBusy}
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={isLoadingData || isCategoryBusy}
+              >
+                {isEditingSection ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </form>
           </div>
@@ -2043,7 +2325,23 @@ function DashboardPage() {
             </button>
 
             <div className="image-preview-stage">
-              <img src={expandedImageInPool.previewUrl} alt={expandedImageInPool.fileName} />
+              <img
+                src={expandedImageInPool.previewUrl}
+                alt={expandedImageInPool.fileName}
+                className={isExpandedImageLoading ? 'preview-stage-image is-loading' : 'preview-stage-image is-ready'}
+                onLoad={() => {
+                  setIsExpandedImageLoading(false);
+                }}
+                onError={() => {
+                  setIsExpandedImageLoading(false);
+                }}
+              />
+              {isExpandedImageLoading && (
+                <div className="image-preview-loading">
+                  <span className="inline-spinner" aria-hidden="true" />
+                  <span>Cargando imagen...</span>
+                </div>
+              )}
               <button
                 type="button"
                 className="overlay-nav-btn prev"

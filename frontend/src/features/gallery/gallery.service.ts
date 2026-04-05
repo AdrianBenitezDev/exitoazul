@@ -11,6 +11,7 @@
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -36,6 +37,9 @@ type ImageDoc = {
   downloadUrl?: string;
   thumbStoragePath?: string;
   thumbnailUrl?: string;
+  createdAt?: {
+    toMillis?: () => number;
+  } | null;
 };
 
 const THUMBNAIL_MAX_DIMENSION = 520;
@@ -287,6 +291,29 @@ export const createUserSection = async (
   return docRef.id;
 };
 
+const getImagesBySection = async (
+  db: Firestore,
+  uid: string,
+  sectionId: string,
+) => {
+  const q = query(imagesCollection(db, uid), where('sectionId', '==', sectionId));
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs
+    .map((docSnap) => {
+      const data = docSnap.data() as ImageDoc;
+      const createdAtMillis =
+        typeof data.createdAt?.toMillis === 'function' ? data.createdAt.toMillis() : 0;
+
+      return {
+        docSnap,
+        data,
+        createdAtMillis,
+      };
+    })
+    .sort((a, b) => a.createdAtMillis - b.createdAtMillis);
+};
+
 export const uploadImageForSection = async (params: {
   db: Firestore;
   storage: FirebaseStorage;
@@ -373,6 +400,36 @@ export const setUserImageFavorite = async (params: {
   });
 };
 
+export const renameUserSectionAndImages = async (params: {
+  db: Firestore;
+  uid: string;
+  sectionId: string;
+  nextSectionName: string;
+}): Promise<{ renamedImages: number }> => {
+  const { db, uid, sectionId, nextSectionName } = params;
+  const trimmedName = nextSectionName.trim();
+  const sectionRef = doc(db, 'users', uid, 'sections', sectionId);
+  const sectionImages = await getImagesBySection(db, uid, sectionId);
+
+  await updateDoc(sectionRef, {
+    name: trimmedName,
+    updatedAt: serverTimestamp(),
+  });
+
+  await Promise.all(
+    sectionImages.map(({ docSnap }, index) =>
+      updateDoc(docSnap.ref, {
+        fileName: buildAutoImageName(trimmedName, index + 1),
+        updatedAt: serverTimestamp(),
+      }),
+    ),
+  );
+
+  return {
+    renamedImages: sectionImages.length,
+  };
+};
+
 export const deleteUserImage = async (params: {
   db: Firestore;
   storage: FirebaseStorage;
@@ -413,4 +470,60 @@ export const deleteUserImage = async (params: {
 
   const imageRef = doc(db, 'users', uid, 'images', image.id);
   await deleteDoc(imageRef);
+};
+
+export const deleteUserSectionWithImages = async (params: {
+  db: Firestore;
+  storage: FirebaseStorage;
+  uid: string;
+  sectionId: string;
+}): Promise<{ deletedImages: number }> => {
+  const { db, storage, uid, sectionId } = params;
+  const sectionImages = await getImagesBySection(db, uid, sectionId);
+
+  await Promise.all(
+    sectionImages.map(async ({ docSnap, data }) => {
+      const storagePath = data.storagePath?.trim() ?? '';
+      const thumbStoragePath = data.thumbStoragePath?.trim() ?? '';
+
+      if (storagePath) {
+        await deleteObject(ref(storage, storagePath)).catch((error: unknown) => {
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            (error as { code?: string }).code === 'storage/object-not-found'
+          ) {
+            return;
+          }
+
+          throw error;
+        });
+      }
+
+      if (thumbStoragePath) {
+        await deleteObject(ref(storage, thumbStoragePath)).catch((error: unknown) => {
+          if (
+            typeof error === 'object' &&
+            error !== null &&
+            'code' in error &&
+            (error as { code?: string }).code === 'storage/object-not-found'
+          ) {
+            return;
+          }
+
+          throw error;
+        });
+      }
+
+      await deleteDoc(docSnap.ref);
+    }),
+  );
+
+  const sectionRef = doc(db, 'users', uid, 'sections', sectionId);
+  await deleteDoc(sectionRef);
+
+  return {
+    deletedImages: sectionImages.length,
+  };
 };

@@ -85,6 +85,7 @@ function SharedGalleryPage() {
   const [showAuthPrompt, setShowAuthPrompt] = useState<boolean>(false);
   const [downloadingImageId, setDownloadingImageId] = useState<string | null>(null);
   const [loadedCardImageIds, setLoadedCardImageIds] = useState<Record<string, boolean>>({});
+  const [isExpandedImageLoading, setIsExpandedImageLoading] = useState<boolean>(false);
   const hasToken = Boolean(token?.trim());
   const safeToken = token?.trim() ?? '';
   const redirectTarget = safeToken ? `/s/${safeToken}` : '/';
@@ -194,6 +195,10 @@ function SharedGalleryPage() {
     () => galleryImages.find((image) => image.id === expandedImageId) ?? null,
     [galleryImages, expandedImageId],
   );
+
+  useEffect(() => {
+    setIsExpandedImageLoading(Boolean(expandedImage));
+  }, [expandedImage]);
 
   const expandedImageIndex = useMemo(
     () => galleryImages.findIndex((image) => image.id === expandedImageId),
@@ -566,7 +571,23 @@ function SharedGalleryPage() {
             </button>
 
             <div className="image-preview-stage">
-              <img src={expandedImage.previewUrl} alt={expandedImage.fileName} />
+              <img
+                src={expandedImage.previewUrl}
+                alt={expandedImage.fileName}
+                className={isExpandedImageLoading ? 'preview-stage-image is-loading' : 'preview-stage-image is-ready'}
+                onLoad={() => {
+                  setIsExpandedImageLoading(false);
+                }}
+                onError={() => {
+                  setIsExpandedImageLoading(false);
+                }}
+              />
+              {isExpandedImageLoading && (
+                <div className="image-preview-loading">
+                  <span className="inline-spinner" aria-hidden="true" />
+                  <span>Cargando imagen...</span>
+                </div>
+              )}
               <button
                 type="button"
                 className="overlay-nav-btn prev"
