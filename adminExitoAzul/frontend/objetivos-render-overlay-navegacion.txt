@@ -1,0 +1,21 @@
+OBJETIVOS PROPUESTOS (RENDER Y NAVEGACION) - 2026-04-03
+
+1) Render progresivo en cards
+- Mostrar cada imagen de card con estado inicial de baja nitidez (blur) para mejorar percepcion de carga.
+- Aplicar `loading="lazy"` y `decoding="async"` en imagenes de card.
+- Al completar la carga, quitar blur y mostrar version nitida.
+
+2) Overlay con navegacion entre imagenes (Panel principal)
+- Al abrir una imagen en overlay, habilitar botones "Anterior" y "Siguiente".
+- Permitir navegacion por teclado con flechas izquierda/derecha.
+- Si hay imagenes seleccionadas y la imagen abierta pertenece a la seleccion, navegar dentro de la seleccion.
+- Si no, navegar dentro de toda la coleccion visible de la seccion.
+
+3) Overlay con navegacion entre imagenes (Vista compartida /s/:token)
+- Agregar botones "Anterior" y "Siguiente" dentro del overlay.
+- Agregar navegacion por teclado con flechas izquierda/derecha.
+- Navegar dentro de todas las imagenes de la galeria compartida.
+
+4) QA tecnico
+- Ejecutar lint y build en frontend.
+- Push a GitHub y deploy en Firebase.

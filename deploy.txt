@@ -1,0 +1,49 @@
+DEPLOY EXITOAZUL + ADMIN (MISMO HOSTING)
+
+Objetivo
+- Publicar en el mismo hosting:
+  - App principal en /
+  - Admin en /admin
+- Hosting actual: https://exitoazul-87247.web.app
+
+Importante
+- Para cambios de frontend/admin usar:
+  firebase deploy --only hosting
+- Evitar firebase deploy (completo) salvo que sea necesario, porque puede fallar por funciones remotas que no estan en el source local.
+
+Prerequisitos
+1) Tener acceso a ambos proyectos locales:
+   - exitoAzul
+   - adminExitoAzul
+2) Estar logueado en Firebase CLI.
+3) Mantener este rewrite en exitoAzul/firebase.json (antes del rewrite "**"):
+   {
+     "source": "/admin{,/**}",
+     "destination": "/admin/index.html"
+   }
+
+Pasos de deploy (PowerShell)
+1) Build app principal (exitoAzul):
+   cd "c:\Users\37adr\OneDrive\Documentos\dev 2026\exitoAzul\frontend"
+   npm run build
+
+2) Build admin (adminExitoAzul) hacia exitoAzul/frontend/dist/admin:
+   cd "c:\Users\37adr\OneDrive\Documentos\dev 2026\adminExitoAzul\frontend"
+   .\node_modules\.bin\vite.cmd build --base=/admin/ --outDir "c:\Users\37adr\OneDrive\Documentos\dev 2026\exitoAzul\frontend\dist\admin" --emptyOutDir
+
+3) Deploy hosting:
+   cd "c:\Users\37adr\OneDrive\Documentos\dev 2026\exitoAzul"
+   firebase deploy --only hosting
+
+Verificacion post deploy
+1) App principal:
+   https://exitoazul-87247.web.app
+2) Admin:
+   https://exitoazul-87247.web.app/admin
+
+Checklist rapido para Codex
+1) Confirmar que firebase.json conserva el rewrite /admin{,/**}.
+2) Ejecutar build de exitoAzul/frontend.
+3) Ejecutar build de adminExitoAzul/frontend con --base=/admin/ y outDir en exitoAzul/frontend/dist/admin.
+4) Ejecutar firebase deploy --only hosting en exitoAzul.
+5) Reportar URLs finales y resultado.

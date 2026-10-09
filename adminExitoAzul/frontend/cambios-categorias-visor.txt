@@ -1,0 +1,17 @@
+Cambios solicitados (categorias + visor) - 04-04-2026
+
+1) Categorias:
+- Agregar boton "X" en esquina superior derecha de cada card de categoria.
+- Al hacer click, pedir confirmacion y eliminar categoria.
+- Eliminar tambien las imagenes de esa categoria (documentos + archivos en Storage).
+
+2) Edicion de categorias:
+- Permitir editar el nombre de la categoria.
+- Validar que no exista otra categoria con el mismo nombre (ignorar mayus/minus).
+- Al renombrar categoria, renombrar las imagenes internas al formato:
+  nombre_categoria_numero
+
+3) Visor de imagen:
+- Mostrar spinner de carga al abrir imagen ampliada.
+- Mantener un tamano estable del visor para evitar salto visual.
+

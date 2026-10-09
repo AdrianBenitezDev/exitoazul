@@ -1,0 +1,22 @@
+Pedido implementado: Web de Administrador Exito Azul
+
+Requerimientos recibidos:
+1) Reconocer correo admin artbenitezdev@gmail.com y permitir continuar solo a ese correo.
+2) Crear dos secciones principales: Usuarios y Pagos.
+3) En Usuarios: select con todos los correos, cards por categoria, ver imagenes por categoria y ampliar imagen al click.
+4) En Pagos: listar usuarios actuales en bloques de 10 y cargar mas con boton "Mas".
+5) Usar functions de ExitoAzul y crear carpeta admin dentro de functions.
+6) Documentar esta decision en .txt.
+
+Lo ejecutado en este workspace:
+- Se copio base tecnica de exitoAzul (frontend + functions) para trabajar el admin.
+- Se implemento backend admin en functions/src/admin.
+- Se agrego guard de seguridad por email admin en backend y frontend.
+- Se creo pantalla AdminPage con tabs Usuarios/Pagos.
+- Se agrego boton "Mas" para paginacion de 10 usuarios en pagos.
+- Se agrego modal para ampliar imagen al click.
+- Se documento la decision en functions/admin/decision-admin.txt.
+
+Siguiente paso de ejecucion local:
+- frontend: npm install && npm run build
+- functions: npm install && npm run build

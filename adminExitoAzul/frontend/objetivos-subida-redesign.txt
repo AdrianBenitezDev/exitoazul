@@ -1,0 +1,9 @@
+Objetivos solicitados para el bloque de subida:
+
+1. Reemplazar el control actual de subida (`secondary-btn file-upload-btn`).
+2. Usar un div de ancho completo (100% width).
+3. Dentro del div, centrar un icono de "subir" dentro de un circulo.
+4. Estilo del bloque/icono en color rojo.
+5. Al hacer hover sobre el icono/boton, mostrar un span con el texto:
+   "subir imagen".
+6. Mantener funcional la accion de seleccionar archivo y subir imagen.

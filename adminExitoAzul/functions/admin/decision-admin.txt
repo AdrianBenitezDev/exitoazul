@@ -1,0 +1,15 @@
+Decision tecnica: modulo admin dentro de functions
+
+Se creo la carpeta functions/admin para documentar el modulo administrador y dejar visible la decision de arquitectura solicitada.
+
+Implementacion real del codigo:
+- El codigo ejecutable se ubica en functions/src/admin para que TypeScript lo compile (tsconfig incluye src).
+- Desde functions/src/index.ts se exporta el modulo admin para desplegar las funciones.
+
+Funciones nuevas de administrador:
+- adminListUserEmails: lista correos de usuarios registrados.
+- adminGetUserCatalog: devuelve categorias + imagenes por correo seleccionado.
+- adminListPaymentsUsers: pagina usuarios en bloques de 10 para la seccion pagos.
+
+Seguridad:
+- Todas las funciones validan que el usuario autenticado tenga el correo artbenitezdev@gmail.com.

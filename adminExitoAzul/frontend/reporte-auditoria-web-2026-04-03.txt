@@ -1,0 +1,110 @@
+REPORTE DE AUDITORIA WEB - EXITO AZUL
+Fecha: 2026-04-03
+
+RESUMEN EJECUTIVO
+- Estado general: PARCIALMENTE FUNCIONAL.
+- Build frontend y backend: OK.
+- Lint frontend y backend: OK.
+- Hallazgos principales:
+  1) Link roto/inconsistente en footer (/register.html).
+  2) Riesgo de privacidad: los links temporales exponen URLs directas de Storage que pueden seguir funcionando aunque el token expire o sea revocado.
+  3) Politica de privacidad desalineada con comportamiento actual (la web SI ofrece descarga).
+
+ALCANCE DE LA AUDITORIA
+- Repositorio local (frontend + functions).
+- Verificacion de rutas, enlaces, flujos y dependencias criticas.
+- Validaciones tecnicas ejecutadas:
+  - frontend: npm run lint
+  - frontend: npm run build
+  - functions: npm run lint
+  - functions: npm run build
+
+LIMITACIONES DE PRUEBA
+- No fue posible levantar `vite preview` en este entorno por error de permisos del runtime (EPERM sobre ruta del sistema), por lo que la verificacion E2E visual completa en navegador no pudo ejecutarse aqui.
+- La validacion funcional se hizo por inspeccion de codigo + compilacion + coherencia de rutas.
+
+RESULTADO POR FUNCIONALIDAD
+1) Autenticacion (email/google/logout): FUNCIONAL EN CODIGO
+- Login, registro y cierre de sesion implementados.
+- Redireccion en login si ya hay sesion activa: implementada.
+
+2) Proteccion de rutas: FUNCIONAL EN CODIGO
+- / y /index.html protegidas por RequireAuth.
+- /s/:token publica (sin login obligatorio): implementada.
+
+3) Secciones (crear/listar/seleccionar): FUNCIONAL EN CODIGO
+- Creacion de categoria y seleccion activa implementadas.
+
+4) Subida de imagen + nombre automatico: FUNCIONAL EN CODIGO
+- Naming automatico por seccion con secuencia (formato slug_secuencia).
+
+5) Acciones por imagen (favorita/eliminar/descargar): FUNCIONAL EN CODIGO
+- Favorita y eliminar sobre DB/Storage del propietario.
+- Descarga disponible en dashboard y vista compartida.
+
+6) Compartir (link temporal / archivo / fallback): FUNCIONAL EN CODIGO
+- Generacion de links temporales por imagen y por seccion.
+- Compartir archivos directos cuando el navegador lo soporta.
+- Fallback a links temporales si no hay compatibilidad.
+
+7) Revocacion de link temporal: FUNCIONAL EN CODIGO
+- Revocacion del ultimo link generado implementada.
+
+8) Vista compartida /s/:token: FUNCIONAL EN CODIGO
+- Resuelve token por Cloud Function.
+- Permite ampliar imagen y descargar sin login.
+- Favoritos en vista compartida requieren login (guardado local por usuario).
+
+ESTADO DE LINKS Y RUTAS
+1) Rutas declaradas en router: OK
+- /, /index.html, /login, /register, /privacy, /s/:token, *
+
+2) Enlaces internos React: MAYORMENTE OK
+- Links a /login, /index.html, /privacy, /register: presentes y coherentes.
+
+3) Hallazgo de enlace roto/inconsistente: FAIL
+- En footer se usa href="/register.html", pero en build final no existe frontend/dist/register.html.
+- Consecuencia: ese link no lleva al flujo React /register y puede terminar en 404/logica no esperada segun hosting.
+
+HALLAZGOS DETALLADOS (PRIORIDAD)
+[CRITICO]
+1) Riesgo de privacidad en links temporales
+- Backend devuelve previewUrl basado en downloadUrl persistente de Storage.
+- Esas URLs pueden sobrevivir a la revocacion/expiracion del token compartido.
+- Impacto: si alguien copia la URL directa, podria acceder a la imagen fuera de la ventana temporal.
+- Recomendacion:
+  - No exponer downloadUrl permanente.
+  - Servir acceso via endpoint controlado o URL firmada de corta vida por solicitud.
+
+[ALTO]
+2) Link de footer inconsistente
+- Footer apunta a /register.html mientras la app opera con ruta React /register.
+- En build actual no se genera register.html.
+- Recomendacion: cambiar footer a /register (Link de React).
+
+[MEDIO]
+3) Politica de privacidad desactualizada
+- El texto indica que "no se ofrece descarga", pero hoy hay botones de descarga.
+- Impacto: incoherencia legal/funcional.
+- Recomendacion: actualizar politica o retirar descarga.
+
+4) Compartir por archivo crea links temporales aun cuando no se usan
+- En compartir por archivo se crean links antes de intentar envio directo.
+- Si el envio directo funciona, igual quedan links activos innecesarios.
+- Recomendacion: crear links solo si falla el envio directo.
+
+[BAJO]
+5) Favoritos en vista compartida se guardan en localStorage
+- No hay persistencia en Firestore para este caso.
+- Recomendacion: definir si es comportamiento deseado o migrar a favoritos reales de cuenta.
+
+CHECKLIST DE CORRECCION RECOMENDADO (ORDEN)
+1) Corregir exposicion de URLs permanentes (CRITICO).
+2) Corregir link footer a /register.
+3) Alinear politica de privacidad con comportamiento real.
+4) Optimizar flujo de compartir archivo para no crear links innecesarios.
+5) Definir politica definitiva de favoritos en vista compartida.
+
+CONCLUSION
+- La web esta avanzada y funcional en sus flujos principales.
+- Antes de considerarla "lista" para produccion estable, hay que resolver especialmente el punto CRITICO de privacidad de links temporales y el enlace inconsistente del footer.

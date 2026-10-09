@@ -1,0 +1,17 @@
+OBJETIVOS AJUSTE LOGIN - 2026-04-03
+
+1) Centrar elementos del login
+- Centrar visualmente el contenido completo de la pantalla de login.
+- Centrar los paneles (hero + formulario) para evitar que queden alineados a la izquierda.
+- Mantener buena legibilidad de labels e inputs.
+
+2) Boton "Continuar con Google" con icono
+- Agregar icono de Google dentro del boton.
+- Mantener estados de carga y disabled actuales.
+
+3) Quitar dato innecesario
+- Eliminar el texto: "Ruta destino luego de login: /index.html".
+
+4) Entrega
+- Ejecutar lint y build del frontend.
+- Deploy en Firebase Hosting.

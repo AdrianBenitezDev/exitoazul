@@ -1,0 +1,12 @@
+Objetivos solicitados para el banner de la pagina principal:
+
+1. Revisar y simplificar el banner principal.
+2. Eliminar botones de navegacion que no tienen sentido simultaneo:
+- Quitar boton "Panel".
+- Quitar boton "Registro".
+- Quitar boton "Login" del bloque de navegacion principal.
+3. Evitar estados incoherentes de sesion en UI:
+- No mostrar "Login" junto con el nombre del usuario cuando ya hay sesion iniciada.
+4. Hacer clickeable el icono/titulo de la web (h3/h1 azul "Exito Azul"):
+- Debe llevar al inicio (index).
+5. Quitar boton de registro y boton de panel del banner principal.

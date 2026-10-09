@@ -1,0 +1,62 @@
+FALTANTES PARA WEB FUNCIONAL - EXITO AZUL
+Fecha de actualizacion: 2026-04-02
+
+OBJETIVO
+Pasar de una web desplegada a un producto funcional y seguro para usuarios reales.
+
+AVANCE ACTUAL (YA IMPLEMENTADO)
+[OK] Persistencia real en Firestore para secciones e imagenes (por usuario)
+[OK] Alta de seccion real en Firestore
+[OK] Favorita on/off real en Firestore
+[OK] Eliminacion real de imagen en Firestore + Storage
+[OK] Subida real de imagen a Firebase Storage
+[OK] Metadatos de imagen en Firestore (fileName, sectionId, isFavorite, storagePath, downloadUrl)
+[OK] Naming automatico de imagenes: nombre_seccion_numero
+[OK] Ruta "/" protegida por auth
+[OK] Ruta compartida "/s/:token" publica
+[OK] Registro real con Firebase Auth (email/clave)
+[OK] Login real con email/clave y Google
+[OK] createShareLink en Cloud Functions
+[OK] revokeShareLink en Cloud Functions
+[OK] resolveSharedGallery en Cloud Functions
+[OK] Vista compartida real en /s/:token (sin mock)
+[OK] Revocacion de ultimo link desde UI
+
+PENDIENTE PRIORIDAD 1 (BLOQUEANTE)
+1) Deploy y validacion de Functions en Firebase
+- Desplegar functions y confirmar que frontend las consume en produccion.
+- Probar flujo completo create -> abrir /s/:token -> revoke -> acceso denegado.
+
+2) Reglas finales y pruebas cruzadas
+- Revisar Firestore rules finales para todos los paths nuevos.
+- Probar acceso cruzado entre usuarios (debe fallar).
+- Revisar storage rules con validaciones de tipo y tamano.
+
+PENDIENTE PRIORIDAD 2 (ROBUSTEZ)
+3) Validaciones funcionales
+- Limite de tamano por imagen.
+- Tipos MIME permitidos.
+- Limite de volumen por usuario (control de costos).
+
+4) Manejo de errores UX
+- Mensajes especificos por caso (auth, network, permisos, cuota).
+- Estados de carga y vacio en todas las vistas.
+
+5) Auditoria y observabilidad
+- Logs en Cloud Functions (creacion/revocacion/resolucion de links).
+- Alertas basicas de fallos.
+
+PENDIENTE PRIORIDAD 3 (GO-LIVE)
+6) Entornos y despliegue
+- Separar dev/staging/prod.
+- Variables .env por ambiente.
+- Revisar cache headers.
+
+7) Dominio y legal
+- Dominio custom (si aplica).
+- Politica de privacidad final (texto legal real).
+- Terminos y condiciones.
+
+SIGUIENTE ORDEN RECOMENDADO
+Sprint 4:
+- Reglas finales + hardening de subida + pruebas de seguridad + cierre de produccion

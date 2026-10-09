@@ -1,0 +1,71 @@
+Checklist tecnico - Fase 2 (Pipeline de filtros por etapas)
+
+Objetivo de Fase 2
+- Pasar de filtro basico actual a un pipeline modular con controles de intensidad, manteniendo Jeeliz como base de tracking.
+
+1) Arquitectura (primero)
+[ ] Crear modulo de pipeline en src/features/camera/pipeline/
+[ ] Definir interfaz de etapa (input frame -> output frame)
+[ ] Separar "tracking facial" de "render de efectos"
+[ ] Mantener DashboardPage como orquestador, no como motor grafico
+
+2) Modelo de datos de filtros
+[ ] Crear tipo FilterPreset con:
+    - id
+    - nombre
+    - etapas activas
+    - parametros por etapa
+[ ] Crear tipo FilterParams para intensidad (0-100)
+[ ] Definir estado global de filtro activo + parametros
+
+3) Etapas minimas del pipeline
+[ ] Etapa 1: correccion base (brillo/contraste/saturacion)
+[ ] Etapa 2: tono de piel suave (global)
+[ ] Etapa 3: rubor/labios guiado por face tracking
+[ ] Etapa 4: nitidez leve de salida
+
+4) UI de control
+[ ] Mantener botones simples actuales
+[ ] Agregar slider de intensidad unico (0-100)
+[ ] Agregar selector de preset (max 3 al inicio)
+[ ] Mostrar estado: "Filtro aplicado" / "Sin filtro"
+
+5) Render y performance
+[ ] Implementar render loop controlado con requestAnimationFrame
+[ ] Evitar crear objetos pesados dentro del loop
+[ ] Reusar canvas/context y buffers
+[ ] Medir FPS aproximado y desactivar efectos pesados en mobiles lentos
+
+6) Captura/export
+[ ] Capturar frame final ya procesado (con filtro aplicado)
+[ ] Conservar nombre automatico seccion_numero
+[ ] Mantener flujo actual de subida sin cambios
+
+7) Manejo de errores
+[ ] Mensaje claro si falla camara
+[ ] Mensaje claro si falla inicializacion Jeeliz
+[ ] Fallback: seguir permitiendo uso sin filtro
+
+8) Calidad y limpieza
+[ ] Sin codigo muerto del sistema anterior
+[ ] Funciones chicas y modulares
+[ ] Comentarios minimos solo en bloques complejos
+[ ] Revisar listeners para evitar duplicados/memory leaks
+
+9) Pruebas manuales minimas
+[ ] Desktop Chrome/Edge: abrir camara, activar filtro, capturar
+[ ] Mobile Android: abrir camara, cambiar intensidad, capturar
+[ ] Sin rostro detectado: no romper interfaz
+[ ] Cerrar/reabrir camara multiples veces sin errores
+
+10) Definicion de "hecho" (DoD)
+[ ] El filtro se aplica en vivo
+[ ] La intensidad modifica visualmente el resultado
+[ ] La captura guarda la imagen con el efecto final
+[ ] No se rompe subida/galeria/compartido
+[ ] Build y lint en verde
+
+Backlog sugerido (Fase 3)
+- Migrar etapas pesadas a shaders WebGL/WebGPU
+- Soporte de LUT real por preset
+- Presets personalizados por usuario guardados en DB
